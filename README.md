@@ -17,46 +17,10 @@ This randomization is stable -- the same initial link will randomize to the same
 
 This project uses python and fastapi. It does not have a traditional database; it uses text files stored in the filesystem. This should be performant enough for up to a few hundred thousand unique redirect URLs.
 
-Required settings:
+Required settings, sent in environment variables:
 
 * `LOOKUP_DIR` a path, must be readable/writable by this process, where we'll store the computed redirects
 * `STUDIES_FILE` A path, must be readable by this process, that will list the potential study links in a weighted list
-
-### Algorithm
-
-* Get the URL parameters, compute a SHA256 hash from them -- I think json.dumps(params, sort_keys=True) will do this stably, store it in `url_hash`
-* Set `destination_url` to None
-* Look for `LOOKUP_DIR`/`url_hash`
-* If it's found, read the file and store the contents in `destination_url`
-* Otherwise, pick a random URL from `STUDIES_FILE`, merge the parameters and store the result in `destination_url`
-* Store `destination_url` in `LOOKUP_DIR`/`url_hash`
-* Return a 302 to `destination_url`
-
-URLs will be parsed, parameter merged, and generated using python's `urllib` module.
-
-### Routes
-
-#### GET /
-
-Runs the above algorithm, returns a 302 Found if this is found, 404 if there are no parameters, 500 if the algorithm fails for any reason
-
-#### GET /health
-
-Checks to make sure we can read and write to `LOOKUP_DIR` and that `STUDIES_FILE` is readable and well-formed. Always returns a JSON object with the keys `status`, `errors`, and `studies`.
-
-If things are okay, returns 200 OK with:
-- `status` = `"ok"`
-- `errors` = `[]`
-- `studies` = array of `{url, weight, percent, note?}` objects showing the parsed studies
-
-If there are errors, returns 500 with:
-- `status` = `"error"`
-- `errors` = array of error strings
-- `studies` = array of any studies that *did* parse correctly
-
-The `studies` array is useful for verifying your TOML file is being parsed correctly. The `percent` field shows the normalized weight as a percentage, so you can easily see what fraction of new redirects will go to each study.
-
-**Note:** If some studies fail to parse but others are valid, `/health` returns 500 (for monitoring purposes) but still lists the valid studies. The `/sr` endpoint will continue to redirect to valid studies even when there are parse errors, ensuring service continuity.
 
 ### `STUDIES_FILE`
 
@@ -94,6 +58,42 @@ Weights must be nonnegative numbers. Weights are relative -- all weights are div
 Contains a set of files with names as lowercase sha256 hex digests. The contents of each file will be a single URL, optionally terminated with a newline. File contents should be trimmed of whitespace before redirecting to URLs. URL format will not be checked before redirecting.
 
 **Important:** `LOOKUP_DIR` should be on a local filesystem that supports POSIX file locking (e.g., ext4, APFS). Network filesystems (NFS, SMB) may not provide reliable locking semantics and could lead to race conditions.
+
+### Algorithm
+
+* Get the URL parameters, sorted by name. Compute a SHA256 hash from them, store it in `url_hash`
+* Set `destination_url` to None
+* Look for `LOOKUP_DIR`/`url_hash`
+* If it's found, read the file and store the contents in `destination_url`
+* Otherwise, pick a random URL from `STUDIES_FILE`, merge the parameters and store the result in `destination_url`
+* Store `destination_url` in `LOOKUP_DIR`/`url_hash`
+* Return a 302 to `destination_url`
+
+URLs will be parsed, parameter merged, and generated using python's `urllib` module.
+
+### Routes
+
+#### GET /
+
+Runs the above algorithm, returns a 302 Found if this is found, 404 if there are no parameters, 500 if the algorithm fails for any reason
+
+#### GET /health
+
+Checks to make sure we can read and write to `LOOKUP_DIR` and that `STUDIES_FILE` is readable and well-formed. Always returns a JSON object with the keys `status`, `errors`, and `studies`.
+
+If things are okay, returns 200 OK with:
+- `status` = `"ok"`
+- `errors` = `[]`
+- `studies` = array of `{url, weight, percent, note?}` objects showing the parsed studies
+
+If there are errors, returns 500 with:
+- `status` = `"error"`
+- `errors` = array of error strings
+- `studies` = array of any studies that *did* parse correctly
+
+The `studies` array is useful for verifying your TOML file is being parsed correctly. The `percent` field shows the normalized weight as a percentage, so you can easily see what fraction of new redirects will go to each study.
+
+**Note:** If some studies fail to parse but others are valid, `/health` returns 500 (for monitoring purposes) but still lists the valid studies. The `/sr` endpoint will continue to redirect to valid studies even when there are parse errors, ensuring service continuity.
 
 ## Troubleshooting
 
