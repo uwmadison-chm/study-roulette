@@ -17,7 +17,7 @@ This randomization is stable -- the same initial link will randomize to the same
 
 This project uses python and fastapi. It does not have a traditional database; it uses text files stored in the filesystem. This should be performant enough for up to a few hundred thousand unique redirect URLs.
 
-Required settings:
+Required settings, sent in environment variables:
 
 * `LOOKUP_DIR` a path, must be readable/writable by this process, where we'll store the computed redirects
 * `STUDIES_FILE` A path, must be readable by this process, that will list the potential study links in a weighted list
