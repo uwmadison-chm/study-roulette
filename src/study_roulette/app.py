@@ -193,11 +193,13 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         title="Study Roulette", docs_url=None, redoc_url=None, openapi_url=None
     )
 
-    @app.get("/health")
-    def health() -> HealthResponse:
+    @app.api_route("/health", methods=["GET", "HEAD"])
+    def health(request: Request) -> Response:
         roulette = StudyRoulette.build_and_check(
             settings.lookup_dir, settings.studies_file
         )
+        if request.method == "HEAD":
+            return Response(status_code=roulette.status.http_status_code)
         return HealthResponse(roulette)
 
     @app.get("/")
