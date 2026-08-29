@@ -2,6 +2,10 @@
 # Copy this to studies.toml and modify as needed
 
 studies = [
-    {url = "https://www.google.com/search", weight = 1, note = "Google Search"},
+    {url = "https://www.google.com/search", weight = 1, note = "Google Search", required_params = ["q"], key_params = ["q"]},
     {url = "https://duckduckgo.com/", weight = 2, note = "DuckDuckGo"},
 ]
+
+[fallback]
+url = "https://lite.duckduckgo.com/lite/"
+note = "Used only when no study is eligible"

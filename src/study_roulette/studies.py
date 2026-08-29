@@ -2,7 +2,7 @@ from functools import lru_cache
 import logging
 import random
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -15,11 +15,24 @@ class Study:
     url: str
     weight: float
     note: str | None = None
+    # Parameter names that must all be present in a URL for this study to be
+    # eligible. A parameter that is present but blank counts as present.
+    required_params: list[str] = field(default_factory=list)
+    # The subset of required_params used to key persistent randomization.
+    # None means "key on all supplied parameters" (the pre-required_params behavior).
+    key_params: list[str] | None = None
+
+
+@dataclass
+class Fallback:
+    url: str
+    note: str | None = None
 
 
 @dataclass
 class ParseResult:
     studies: list["Study"]
+    fallback: Fallback | None
     errors: list[str]
 
 
@@ -29,40 +42,94 @@ class StudiesFileError(Exception):
     pass
 
 
-def parse_study_entry(entry: Any, index: int) -> Study:
-    """Parse a single study entry from TOML, raising StudiesFileError on failure."""
-    if not isinstance(entry, dict):
-        raise StudiesFileError(
-            f"studies[{index}]: expected a table, got {type(entry).__name__}"
-        )
-
+def parse_url(entry: dict[str, Any], label: str) -> str:
     if "url" not in entry:
-        raise StudiesFileError(f"studies[{index}]: missing required key 'url'")
-    if "weight" not in entry:
-        raise StudiesFileError(f"studies[{index}]: missing required key 'weight'")
+        raise StudiesFileError(f"{label}: missing required key 'url'")
 
     url_str = entry["url"]
     if not isinstance(url_str, str):
-        raise StudiesFileError(f"studies[{index}]: 'url' must be a string")
+        raise StudiesFileError(f"{label}: 'url' must be a string")
 
     parsed = urlparse(url_str)
     if not parsed.scheme or not parsed.netloc:
-        raise StudiesFileError(f"studies[{index}]: invalid URL '{url_str}'")
+        raise StudiesFileError(f"{label}: invalid URL '{url_str}'")
+
+    return url_str
+
+
+def parse_param_list(entry: dict[str, Any], key: str, label: str) -> list[str] | None:
+    if key not in entry:
+        return None
+
+    value = entry[key]
+    if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+        raise StudiesFileError(f"{label}: '{key}' must be an array of strings")
+
+    return value
+
+
+def parse_study_entry(entry: Any, index: int) -> Study:
+    """Parse a single study entry from TOML, raising StudiesFileError on failure."""
+    label = f"studies[{index}]"
+    if not isinstance(entry, dict):
+        raise StudiesFileError(f"{label}: expected a table, got {type(entry).__name__}")
+
+    url_str = parse_url(entry, label)
+
+    if "weight" not in entry:
+        raise StudiesFileError(f"{label}: missing required key 'weight'")
 
     weight = entry["weight"]
     if not isinstance(weight, (int, float)):
-        raise StudiesFileError(f"studies[{index}]: 'weight' must be a number")
+        raise StudiesFileError(f"{label}: 'weight' must be a number")
 
     if weight < 0:
-        raise StudiesFileError(
-            f"studies[{index}]: weight must be non-negative, got {weight}"
-        )
+        raise StudiesFileError(f"{label}: weight must be non-negative, got {weight}")
 
     note = entry.get("note")
     if note is not None:
         note = str(note)
 
-    return Study(url=url_str, weight=float(weight), note=note)
+    required_params = parse_param_list(entry, "required_params", label) or []
+    key_params = parse_param_list(entry, "key_params", label)
+
+    if key_params is not None:
+        missing = [p for p in key_params if p not in required_params]
+        if missing:
+            raise StudiesFileError(
+                f"{label}: key_params must be a subset of required_params, "
+                f"but {missing} are not in required_params"
+            )
+
+    return Study(
+        url=url_str,
+        weight=float(weight),
+        note=note,
+        required_params=required_params,
+        key_params=key_params,
+    )
+
+
+def parse_fallback_entry(entry: Any) -> Fallback:
+    """Parse the fallback table from TOML, raising StudiesFileError on failure."""
+    if not isinstance(entry, dict):
+        raise StudiesFileError(
+            f"fallback: expected a table, got {type(entry).__name__}"
+        )
+
+    # The fallback is always eligible and always keyed on all supplied
+    # parameters, so these keys would be misleading if we silently ignored them
+    for forbidden in ("weight", "required_params", "key_params"):
+        if forbidden in entry:
+            raise StudiesFileError(f"fallback: must not have '{forbidden}'")
+
+    url_str = parse_url(entry, "fallback")
+
+    note = entry.get("note")
+    if note is not None:
+        note = str(note)
+
+    return Fallback(url=url_str, note=note)
 
 
 # We cache this not because it is hard, but because it is trivial
@@ -77,16 +144,21 @@ def parse_studies_file(path: Path) -> ParseResult:
 @lru_cache(maxsize=1)
 def _parse_studies_file(mtime: int, path: Path) -> ParseResult:
     """
-    Parse a TOML studies file and return valid studies and any errors.
+    Parse a TOML studies file and return valid studies, the fallback, and any errors.
 
     Expected format:
         studies = [
             {url = "https://example.com/study1", weight = 1},
-            {url = "https://example.com/study2", weight = 2},
+            {url = "https://example.com/study2", weight = 2,
+             required_params = ["email"], key_params = ["email"]},
         ]
+
+        [fallback]
+        url = "https://example.com/registry"
 
     Fatal errors (can't read file, invalid TOML, missing studies key) raise StudiesFileError.
     Individual study parsing errors are returned in ParseResult.errors alongside valid studies.
+    A missing or invalid fallback is an error, but studies are still returned.
     """
     logger.debug("Parsing studies file: %s", path)
     try:
@@ -115,14 +187,28 @@ def _parse_studies_file(mtime: int, path: Path) -> ParseResult:
         except StudiesFileError as e:
             errors.append(str(e))
 
-    if not studies:
-        errors.append("No valid studies found")
-
-    if studies and all(s.weight == 0 for s in studies):
-        errors.append("At least one study must have a positive weight")
+    fallback: Fallback | None = None
+    if "fallback" not in data:
+        errors.append("Missing required 'fallback' table")
+    else:
+        try:
+            fallback = parse_fallback_entry(data["fallback"])
+        except StudiesFileError as e:
+            errors.append(str(e))
 
     logger.debug("Loaded %d studies from %s", len(studies), path.name)
-    return ParseResult(studies=studies, errors=errors)
+    return ParseResult(studies=studies, fallback=fallback, errors=errors)
+
+
+def eligible_studies(
+    studies: list[Study], params: dict[str, list[str]]
+) -> list[Study]:
+    """
+    Studies whose required_params are all present in params.
+
+    A parameter that is present but blank counts as present.
+    """
+    return [s for s in studies if all(p in params for p in s.required_params)]
 
 
 def choose_study(studies: list[Study]) -> Study:

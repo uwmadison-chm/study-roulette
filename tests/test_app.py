@@ -9,26 +9,30 @@ from study_roulette.app import StudyRoulette
 from study_roulette.settings import Settings
 from study_roulette.studies import Study
 
+from .conftest import FALLBACK_URL
+
 
 @pytest.fixture
-def client(make_settings: Callable[[list[Study]], Settings]) -> TestClient:
+def client(make_settings: Callable[..., Settings]) -> TestClient:
     settings = make_settings([Study(url="https://example.com/survey?s=abc", weight=1)])
     app = build_app(settings)
     return TestClient(app, follow_redirects=False)
 
 
 def test_study_roulette_from_settings(
-    make_settings: Callable[[list[Study]], Settings],
+    make_settings: Callable[..., Settings],
 ) -> None:
     studies = [Study(url="https://example.com/survey?s=abc", weight=1)]
     settings = make_settings(studies)
 
     sr = StudyRoulette.from_settings(settings)
     assert len(sr.studies) == len(studies)
+    assert sr.fallback is not None
+    assert sr.fallback.url == FALLBACK_URL
 
 
 def test_study_roulette_excludes_bad_studies(
-    make_settings: Callable[[list[Study]], Settings],
+    make_settings: Callable[..., Settings],
 ) -> None:
     studies = [
         Study(url="https://example.com/survey?s=abc", weight=1),
@@ -50,8 +54,13 @@ def test_health_returns_ok(client: TestClient) -> None:
     assert data["status"] == "ok"
     assert data["errors"] == []
     assert data["studies"] == [
-        {"url": "https://example.com/survey?s=abc", "weight": 1.0, "percent": 100.0}
+        {
+            "url": "https://example.com/survey?s=abc",
+            "weight": 1.0,
+            "required_params": [],
+        }
     ]
+    assert data["fallback"] == {"url": FALLBACK_URL}
 
 
 def test_health_returns_error_for_missing_studies_file(tmp_path: Path) -> None:
@@ -72,10 +81,28 @@ def test_health_returns_error_for_missing_studies_file(tmp_path: Path) -> None:
     assert data["studies"] == []
 
 
-def test_health_returns_error_for_invalid_studies_file(
-    make_settings: Callable[[list[Study]], Settings],
+def test_health_accepts_empty_studies(
+    make_settings: Callable[..., Settings],
 ) -> None:
-    settings = make_settings([])  # No studies!
+    """No studies is fine now, as long as there's a fallback."""
+    settings = make_settings([])
+    app = build_app(settings)
+    client = TestClient(app)
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["studies"] == []
+
+
+def test_health_returns_error_for_missing_fallback(
+    make_settings: Callable[..., Settings],
+) -> None:
+    settings = make_settings(
+        [Study(url="https://example.com/a", weight=1)], fallback_url=None
+    )
     app = build_app(settings)
     client = TestClient(app)
 
@@ -84,6 +111,73 @@ def test_health_returns_error_for_invalid_studies_file(
     assert response.status_code == 500
     data = response.json()
     assert data["status"] == "error"
+    assert any("fallback" in e for e in data["errors"])
+    assert "fallback" not in data
+
+
+def test_health_omits_percent_without_params(client: TestClient) -> None:
+    response = client.get("/health")
+
+    data = response.json()
+    assert all("percent" not in s for s in data["studies"])
+    assert all("eligible_for_params" not in s for s in data["studies"])
+
+
+def test_health_with_params_shows_eligibility_and_percent(
+    make_settings: Callable[..., Settings],
+) -> None:
+    settings = make_settings(
+        [
+            Study(url="https://example.com/a", weight=1, required_params=["email"]),
+            Study(
+                url="https://example.com/b",
+                weight=3,
+                required_params=["email", "ts", "cn"],
+            ),
+        ]
+    )
+    app = build_app(settings)
+    client = TestClient(app)
+
+    response = client.get("/health?email=a@b.com")
+    data = response.json()
+
+    assert data["studies"][0]["eligible_for_params"] is True
+    assert data["studies"][0]["percent"] == 100.0
+    assert data["studies"][1]["eligible_for_params"] is False
+    assert "percent" not in data["studies"][1]
+
+    response = client.get("/health?email=a@b.com&ts=1&cn=2")
+    data = response.json()
+
+    assert data["studies"][0]["percent"] == 25.0
+    assert data["studies"][1]["percent"] == 75.0
+
+
+def test_health_shows_param_requirements(
+    make_settings: Callable[..., Settings],
+) -> None:
+    settings = make_settings(
+        [
+            Study(
+                url="https://example.com/a",
+                weight=1,
+                required_params=["email"],
+                key_params=["email"],
+            ),
+            Study(url="https://example.com/b", weight=1),
+        ]
+    )
+    app = build_app(settings)
+    client = TestClient(app)
+
+    response = client.get("/health")
+    data = response.json()
+
+    assert data["studies"][0]["required_params"] == ["email"]
+    assert data["studies"][0]["key_params"] == ["email"]
+    assert data["studies"][1]["required_params"] == []
+    assert "key_params" not in data["studies"][1]
 
 
 def test_sr_redirects(client: TestClient) -> None:
@@ -126,8 +220,66 @@ def test_sr_with_no_params(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_health_shows_percent(
-    make_settings: Callable[[list[Study]], Settings],
+def test_sr_routes_to_fallback_when_no_study_eligible(
+    make_settings: Callable[..., Settings],
+) -> None:
+    settings = make_settings(
+        [Study(url="https://example.com/a", weight=1, required_params=["email"])]
+    )
+    app = build_app(settings)
+    client = TestClient(app, follow_redirects=False)
+
+    response = client.get("/?id=123")
+
+    assert response.status_code == 302
+    location = response.headers["location"]
+    assert location.startswith(FALLBACK_URL)
+    assert "id=123" in location
+
+
+def test_sr_returns_error_without_fallback(
+    make_settings: Callable[..., Settings],
+) -> None:
+    settings = make_settings(
+        [Study(url="https://example.com/a", weight=1)], fallback_url=None
+    )
+    app = build_app(settings)
+    client = TestClient(app, follow_redirects=False)
+
+    response = client.get("/?email=a@b.com")
+
+    assert response.status_code == 500
+    assert response.json()["status"] == "error"
+
+
+def test_sr_ts_less_revisit_replays_stored_params(
+    make_settings: Callable[..., Settings],
+) -> None:
+    """The issue #1 motivating example, end to end."""
+    settings = make_settings(
+        [
+            Study(
+                url="https://example.com/b",
+                weight=1,
+                required_params=["email", "ts", "cn"],
+                key_params=["email"],
+            ),
+        ]
+    )
+    app = build_app(settings)
+    client = TestClient(app, follow_redirects=False)
+
+    first = client.get("/?email=a@b.com&ts=111&cn=9")
+    assert first.headers["location"].startswith("https://example.com/b")
+
+    later = client.get("/?email=a@b.com")
+    assert later.status_code == 302
+    assert later.headers["location"] == first.headers["location"]
+    assert "ts=111" in later.headers["location"]
+
+
+def test_health_shows_percent_with_params(
+    make_settings: Callable[..., Settings],
 ) -> None:
     settings = make_settings(
         [
@@ -139,7 +291,7 @@ def test_health_shows_percent(
     app = build_app(settings)
     client = TestClient(app)
 
-    response = client.get("/health")
+    response = client.get("/health?email=a@b.com")
     data = response.json()
 
     assert data["studies"][0]["percent"] == 25.0
@@ -148,7 +300,7 @@ def test_health_shows_percent(
 
 
 def test_sr_distribution_matches_weights(
-    make_settings: Callable[[list[Study]], Settings],
+    make_settings: Callable[..., Settings],
 ) -> None:
     settings = make_settings(
         [
@@ -177,7 +329,7 @@ def test_sr_distribution_matches_weights(
 
 
 def test_health_includes_notes(
-    make_settings: Callable[[list[Study]], Settings],
+    make_settings: Callable[..., Settings],
 ) -> None:
     settings = make_settings(
         [
@@ -206,6 +358,9 @@ studies = [
     {url = "https://example.com/valid", weight = 1},
     {url = "not-a-url", weight = 1},
 ]
+
+[fallback]
+url = "https://example.com/fallback"
 """
     )
 
@@ -234,6 +389,9 @@ studies = [
     {url = "https://example.com/valid", weight = 1},
     {url = "not-a-url", weight = 1},
 ]
+
+[fallback]
+url = "https://example.com/fallback"
 """
     )
 

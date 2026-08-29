@@ -1,17 +1,23 @@
 import json
 import logging
 import os
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
-from pydantic import BaseModel, Field, field_serializer
 
 from .redirect import get_or_create_redirect
 from .settings import Settings
-from .studies import Study, StudiesFileError, parse_studies_file
+from .studies import (
+    Fallback,
+    StudiesFileError,
+    Study,
+    eligible_studies,
+    parse_studies_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,26 +37,8 @@ class NoParamsError(LookupError):
     pass
 
 
-class StudyInfo(BaseModel):
-    url: str
-    weight: float
-    percent: float
-    note: str | None = None
-
-    @classmethod
-    def for_study(cls, study: Study, total_weight: float) -> "StudyInfo":
-        percent = (
-            round(100 * study.weight / total_weight, 2) if total_weight > 0 else 0.0
-        )
-        return cls(
-            url=study.url,
-            weight=study.weight,
-            percent=percent,
-            note=study.note,
-        )
-
-
-class StudyRoulette(BaseModel):
+@dataclass
+class StudyRoulette:
     """
     Core application state after checking all dependencies.
 
@@ -61,8 +49,9 @@ class StudyRoulette(BaseModel):
     status: HealthStatus
     errors: list[str]
     studies: list[Study]
-    lookup_dir: Path = Field(exclude=True)
-    studies_file: Path = Field(exclude=True)
+    fallback: Fallback | None
+    lookup_dir: Path
+    studies_file: Path
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "StudyRoulette":
@@ -82,6 +71,7 @@ class StudyRoulette(BaseModel):
         )
         errors: list[str] = []
         studies: list[Study] = []
+        fallback: Fallback | None = None
 
         # Check/create lookup_dir
         if not lookup_dir.exists():
@@ -110,6 +100,7 @@ class StudyRoulette(BaseModel):
         try:
             result = parse_studies_file(studies_file)
             studies = result.studies
+            fallback = result.fallback
             errors.extend(result.errors)
         except StudiesFileError as e:
             errors.append(str(e))
@@ -125,33 +116,68 @@ class StudyRoulette(BaseModel):
             status=status,
             errors=errors,
             studies=studies,
+            fallback=fallback,
             lookup_dir=lookup_dir,
             studies_file=studies_file,
         )
 
-    @property
-    def total_weight(self) -> float:
-        """Sum of all study weights."""
-        return sum(s.weight for s in self.studies)
+    def health_content(
+        self, params: dict[str, list[str]] | None = None
+    ) -> dict[str, Any]:
+        """
+        The JSON-able content for /health.
 
-    @property
-    def has_eligible_studies(self) -> bool:
-        """Check if there are any studies with positive weight."""
-        return self.total_weight > 0
+        Without params, studies show their raw weight but no percent -- percent
+        isn't computable in general, since it depends on which studies a given
+        URL is eligible for. With params, each study gets an eligible_for_params
+        boolean, and eligible studies get a percent normalized over the
+        eligible set.
+        """
+        content: dict[str, Any] = {
+            "status": self.status.value,
+            "errors": self.errors,
+            "studies": [self._study_info(s, params) for s in self.studies],
+        }
+        if self.fallback is not None:
+            fallback_info: dict[str, Any] = {"url": self.fallback.url}
+            if self.fallback.note is not None:
+                fallback_info["note"] = self.fallback.note
+            content["fallback"] = fallback_info
+        return content
 
-    @field_serializer("studies")
-    def serialize_studies(self, studies: list[Study]) -> list[dict[str, Any]]:
-        return [
-            StudyInfo.for_study(s, self.total_weight).model_dump(exclude_none=True)
-            for s in studies
-        ]
+    def _study_info(
+        self, study: Study, params: dict[str, list[str]] | None
+    ) -> dict[str, Any]:
+        info: dict[str, Any] = {
+            "url": study.url,
+            "weight": study.weight,
+            "required_params": study.required_params,
+        }
+        if study.key_params is not None:
+            info["key_params"] = study.key_params
+        if study.note is not None:
+            info["note"] = study.note
+
+        if params is not None:
+            eligible = all(p in params for p in study.required_params)
+            info["eligible_for_params"] = eligible
+            if eligible:
+                total = sum(s.weight for s in eligible_studies(self.studies, params))
+                percent = round(100 * study.weight / total, 2) if total > 0 else 0.0
+                info["percent"] = percent
+
+        return info
 
     def get_or_create_redirect(self, params: dict[str, list[str]]) -> str:
         """Get or create a redirect URL for the given parameters."""
         if len(params.keys()) == 0:
             raise NoParamsError("No parameters specified")
+        if self.fallback is None:
+            raise ValueError("No fallback configured")
 
-        return get_or_create_redirect(self.lookup_dir, self.studies, params)
+        return get_or_create_redirect(
+            self.lookup_dir, self.studies, self.fallback, params
+        )
 
     def with_error(self, error: str) -> "StudyRoulette":
         """Return a new StudyRoulette with an additional error."""
@@ -159,6 +185,7 @@ class StudyRoulette(BaseModel):
             status=HealthStatus.ERROR,
             errors=[*self.errors, error],
             studies=self.studies,
+            fallback=self.fallback,
             lookup_dir=self.lookup_dir,
             studies_file=self.studies_file,
         )
@@ -177,12 +204,26 @@ class PrettyJSONResponse(JSONResponse):
 class HealthResponse(PrettyJSONResponse):
     """JSON response for health check and error conditions."""
 
-    def __init__(self, roulette: StudyRoulette, **kwargs: Any):
+    def __init__(
+        self,
+        roulette: StudyRoulette,
+        params: dict[str, list[str]] | None = None,
+        **kwargs: Any,
+    ):
         super().__init__(
-            content=roulette.model_dump(exclude_none=True),
+            content=roulette.health_content(params),
             status_code=roulette.status.http_status_code,
             **kwargs,
         )
+
+
+def query_params(request: Request) -> dict[str, list[str]]:
+    params: dict[str, list[str]] = {}
+    for key, value in request.query_params.multi_items():
+        if key not in params:
+            params[key] = []
+        params[key].append(value)
+    return params
 
 
 def build_app(settings: Settings | None = None) -> FastAPI:
@@ -200,7 +241,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         )
         if request.method == "HEAD":
             return Response(status_code=roulette.status.http_status_code)
-        return HealthResponse(roulette)
+        return HealthResponse(roulette, query_params(request) or None)
 
     @app.get("/")
     def redirect(request: Request) -> Response:
@@ -211,15 +252,10 @@ def build_app(settings: Settings | None = None) -> FastAPI:
             settings.lookup_dir, settings.studies_file
         )
 
-        if not roulette.has_eligible_studies:
+        if roulette.fallback is None:
             return HealthResponse(roulette)
 
-        params: dict[str, list[str]] = {}
-        for key, value in request.query_params.multi_items():
-            if key not in params:
-                params[key] = []
-            params[key].append(value)
-
+        params = query_params(request)
         logger.debug(f"Parsed parameters: {params}")
 
         try:
