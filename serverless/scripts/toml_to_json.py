@@ -26,7 +26,7 @@ def main() -> None:
 
     keep = ("url", "weight", "note", "required_params", "key_params")
     studies = []
-    used = {"fallback"}
+    used = {"fallback"}  # the fallback's default name
     for i, entry in enumerate(data.get("studies", [])):
         # Names identify studies in the randomization log; derive them from
         # notes where possible. Review and rename in the configurator.
@@ -40,7 +40,8 @@ def main() -> None:
         study.setdefault("required_params", [])
         studies.append(study)
 
-    fallback = {k: data["fallback"][k] for k in ("url", "note") if k in data["fallback"]}
+    fallback = {"name": "fallback"}
+    fallback.update({k: data["fallback"][k] for k in ("url", "note") if k in data["fallback"]})
     out = {"seed": secrets.token_hex(16), "studies": studies, "fallback": fallback}
     json.dump(out, sys.stdout, indent=2)
     sys.stdout.write("\n")

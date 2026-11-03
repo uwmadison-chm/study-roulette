@@ -16,7 +16,7 @@ createServer(async (req, res) => {
   const request = new Request(`http://${req.headers.host ?? "localhost"}${req.url ?? "/"}`, {
     method: req.method ?? "GET",
   });
-  const response = await handle(request, { store, config, buildId, log: console.log, logLevel: process.env["LOG_LEVEL"], randomizationLog });
+  const response = await handle(request, { store, config, buildId, log: console.log, logLevel: process.env["LOG_LEVEL"], randomizationLog, waitUntil: () => {} });
   res.writeHead(response.status, Object.fromEntries(response.headers));
   res.end(req.method === "HEAD" ? undefined : Buffer.from(await response.arrayBuffer()));
 }).listen(port, () => {

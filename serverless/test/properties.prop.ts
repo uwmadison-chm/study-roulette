@@ -114,7 +114,7 @@ const studyArb: fc.Arbitrary<Study> = fc
 const configArb: fc.Arbitrary<Config> = fc.record({
   seed: fc.string({ minLength: 1, maxLength: 8 }),
   studies: fc.array(studyArb, { maxLength: 5 }),
-  fallback: fc.constant({ url: "https://example.com/fallback" }),
+  fallback: fc.constant({ name: "fallback", url: "https://example.com/fallback" }),
 });
 
 const visitParams = fc

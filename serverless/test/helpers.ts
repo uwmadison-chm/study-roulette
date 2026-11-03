@@ -1,7 +1,7 @@
 import type { Config, Study } from "../src/core/config.ts";
 import type { Params } from "../src/core/params.ts";
 
-export const FALLBACK = { url: "https://example.com/fallback", note: "registry" };
+export const FALLBACK = { name: "registry", url: "https://example.com/fallback", note: "registry" };
 
 export function config(studies: Partial<Study>[], seed = "test-seed"): Config {
   return {

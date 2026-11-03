@@ -10,9 +10,22 @@ import { logStoreFromEnv, s3StoreFromEnv } from "../store/s3.ts";
 import { buildId, config } from "../generated/config.ts";
 
 export default {
-  async fetch(request: Request, env: Record<string, string | undefined>): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Record<string, string | undefined>,
+    ctx: { waitUntil(work: Promise<unknown>): void },
+  ): Promise<Response> {
     const store = s3StoreFromEnv(env);
     const randomizationLog = logStoreFromEnv(env) ?? undefined;
-    return handle(request, { store, config, buildId, log: console.log, logLevel: env["LOG_LEVEL"], randomizationLog });
+    return handle(request, {
+      store,
+      config,
+      buildId,
+      log: console.log,
+      logLevel: env["LOG_LEVEL"],
+      randomizationLog,
+      // Finish the randomization log write after the redirect is sent
+      waitUntil: (work) => ctx.waitUntil(work),
+    });
   },
 };

@@ -21,6 +21,7 @@ interface FunctionUrlResult {
   body: string;
 }
 
+// No waitUntil: Lambda freezes when the handler returns, so the log write is awaited
 const randomizationLog = logStoreFromEnv(process.env) ?? undefined;
 
 export async function handler(event: FunctionUrlEvent): Promise<FunctionUrlResult> {

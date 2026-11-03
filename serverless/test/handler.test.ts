@@ -86,11 +86,11 @@ test("each new assignment writes one zero-byte randomization log entry", async (
   assert.ok([...log.data.values()].every((v) => v === ""));
 });
 
-test("fallback assignments are logged under 'fallback'", async () => {
+test("fallback assignments are logged under the fallback's name", async () => {
   const log = new MemoryStore();
   const c = config([{ url: "https://example.com/a", required_params: ["email"] }]);
   await handle(new Request("https://x/?id=1"), { store: new MemoryStore(), config: c, buildId: "b", randomizationLog: log });
-  assert.match([...log.data.keys()][0]!, /^fallback\/\d{8}T\d{6}Z_/);
+  assert.match([...log.data.keys()][0]!, /^registry\/\d{8}T\d{6}Z_/);
 });
 
 test("a failed log write still redirects and is logged", async () => {
@@ -126,5 +126,22 @@ test("concurrent duplicate visits log one randomization", async () => {
     Array.from({ length: N }, () => handle(new Request("https://x/?email=a"), { ...deps(store), randomizationLog: log })),
   );
   assert.equal(new Set(responses.map((r) => r.headers.get("location"))).size, 1);
+  assert.equal(log.data.size, 1);
+});
+
+test("with waitUntil, the redirect does not wait for the log write", async () => {
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
+  const log = new MemoryStore({ beforePut: () => held });
+  const pending: Promise<unknown>[] = [];
+  const res = await handle(new Request("https://x/?a=1"), {
+    ...deps(),
+    randomizationLog: log,
+    waitUntil: (p) => pending.push(p),
+  });
+  assert.equal(res.status, 302);
+  assert.equal(log.data.size, 0, "write still pending when the response is ready");
+  release();
+  await Promise.all(pending);
   assert.equal(log.data.size, 1);
 });

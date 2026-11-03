@@ -30,11 +30,11 @@ Routing lives in `studies.json`:
     {"name": "control", "url": "https://redcap.example.edu/surveys/?s=12345678", "weight": 1, "note": "Control", "required_params": ["email"], "key_params": ["email"]},
     {"name": "treatment", "url": "https://redcap.example.edu/surveys/?s=abcdef12", "weight": 2, "note": "Treatment", "required_params": ["email", "ts"], "key_params": ["email"]}
   ],
-  "fallback": {"url": "https://redcap.example.edu/surveys/?s=fa11back", "note": "Registry"}
+  "fallback": {"name": "registry", "url": "https://redcap.example.edu/surveys/?s=fa11back", "note": "Registry"}
 }
 ```
 
-Semantics of `weight`, `required_params`, `key_params`, and `fallback` are unchanged from the Python version (see the root README). `seed` is not a secret; it only changes which study never-visited links land on. Each study's `name` (1-64 characters of `a-z`, `0-9`, `_`, `-`; unique; `fallback` is reserved) identifies it in logs and the randomization log.
+Semantics of `weight`, `required_params`, `key_params`, and `fallback` are unchanged from the Python version (see the root README). `seed` is not a secret; it only changes which study never-visited links land on. Each study and the fallback has a `name` (1-64 characters of `a-z`, `0-9`, `_`, `-`, all distinct) that identifies it in logs and the randomization log.
 
 ### Configurator
 
@@ -88,7 +88,7 @@ With `LOG_S3_BUCKET` set, every new assignment also writes a zero-byte object to
 ```
 <study name>/<YYYYMMDDTHHMMSSZ>_<random>
 control/20261103T164231Z_9f2c41ab
-fallback/20261103T170002Z_03d1e7c4
+registry/20261103T170002Z_03d1e7c4
 ```
 
 The key is the whole record, so a report is just a listing, and keys sort by time within each study. Returning visitors and visits that lose a race don't write an entry, so there is exactly one entry per stored mapping. The timestamps have no colons, so `aws s3 sync` to macOS or Windows works.

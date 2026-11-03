@@ -1,4 +1,4 @@
-import { FALLBACK_NAME, type Config } from "./config.ts";
+import type { Config } from "./config.ts";
 import { parseQuery } from "./params.ts";
 import { resolveDetailed } from "./roulette.ts";
 import type { Store } from "../store/types.ts";
@@ -20,6 +20,13 @@ export interface HandlerDeps {
    * listing keys. Omit to disable.
    */
   randomizationLog?: Store;
+  /**
+   * Lets background work (the randomization log write) finish after the
+   * response is sent, e.g. a Workers ExecutionContext's waitUntil. Without
+   * it, the handler waits for the write before responding; that is the
+   * safe choice on Lambda, which freezes once the handler returns.
+   */
+  waitUntil?: (work: Promise<unknown>) => void;
   /** For tests. */
   now?: () => Date;
 }
@@ -70,11 +77,9 @@ export async function handle(request: Request, deps: HandlerDeps): Promise<Respo
   try {
     const r = await resolveDetailed(deps.store, deps.config, params);
     if (deps.randomizationLog && (r.outcome === "created" || r.outcome === "fallback_created")) {
-      const name = r.study === undefined ? FALLBACK_NAME : deps.config.studies[r.study]!.name;
-      try {
-        await recordRandomization(deps.randomizationLog, name, deps.now?.() ?? new Date());
-      } catch (e) {
-        // The assignment is stored; a missing log entry must not break the redirect
+      const name = r.study === undefined ? deps.config.fallback.name : deps.config.studies[r.study]!.name;
+      // The assignment is stored; a missing log entry must not break the redirect
+      const write = recordRandomization(deps.randomizationLog, name, deps.now?.() ?? new Date()).catch((e) => {
         deps.log?.(
           JSON.stringify({
             event: "randomization_log_error",
@@ -82,7 +87,9 @@ export async function handle(request: Request, deps: HandlerDeps): Promise<Respo
             error: e instanceof Error ? e.message : String(e),
           }),
         );
-      }
+      });
+      if (deps.waitUntil) deps.waitUntil(write);
+      else await write;
     }
     if (level === "info" || level === "debug") {
       const study = r.study === undefined ? undefined : deps.config.studies[r.study];
@@ -92,7 +99,7 @@ export async function handle(request: Request, deps: HandlerDeps): Promise<Respo
           method: request.method,
           outcome: r.outcome,
           key: r.key.slice(0, 12),
-          study: study?.name ?? (r.outcome === "fallback_created" ? FALLBACK_NAME : undefined),
+          study: study?.name ?? (r.outcome === "fallback_created" ? deps.config.fallback.name : undefined),
           ms: Date.now() - started,
           ...(level === "debug" ? { params: Object.fromEntries(params), location: r.url } : {}),
         }),
