@@ -106,7 +106,7 @@ const studyArb: fc.Arbitrary<Study> = fc
     keyPick: fc.array(fc.boolean(), { minLength: 4, maxLength: 4 }),
   })
   .map(({ n, weight, required, keyMode, keyPick }) => {
-    const s: Study = { url: `https://example.com/s${n}`, weight, required_params: required };
+    const s: Study = { name: `s${n}`, url: `https://example.com/s${n}`, weight, required_params: required };
     if (keyMode === "subset") s.key_params = required.filter((_, i) => keyPick[i]);
     return s;
   });
