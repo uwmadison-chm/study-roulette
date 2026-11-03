@@ -73,3 +73,20 @@ jobs:
             console.log(e);
             if (e?.created !== Date.parse("2020-01-02T03:04:05Z")) process.exit(1);
           '
+      - name: End to end with the randomization log
+        env:
+          S3_ENDPOINT: http://localhost:9000
+          S3_BUCKET: roulette
+          LOG_S3_BUCKET: roulette-log
+          S3_REGION: us-east-1
+          S3_ACCESS_KEY_ID: minioadmin
+          S3_SECRET_ACCESS_KEY: minioadmin
+          PORT: 8787
+        run: |
+          S3_BUCKET=roulette-log node scripts/check-store.ts --create-bucket
+          node scripts/build.ts --config studies.example.json
+          node dist/node/server.mjs &
+          for i in $(seq 20); do curl -s -o /dev/null localhost:8787/ && break; sleep 0.5; done
+          for id in 1 2 3 4 5 5 5; do curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" "localhost:8787/?id=$id"; done
+          node scripts/report.ts | tee report.txt
+          grep -Eq '^total +5$' report.txt

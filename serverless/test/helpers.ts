@@ -1,12 +1,12 @@
 import type { Config, Study } from "../src/core/config.ts";
 import type { Params } from "../src/core/params.ts";
 
-export const FALLBACK = { url: "https://example.com/fallback", note: "registry" };
+export const FALLBACK = { name: "registry", url: "https://example.com/fallback", note: "registry" };
 
 export function config(studies: Partial<Study>[], seed = "test-seed"): Config {
   return {
     seed,
-    studies: studies.map((s) => ({ url: "https://example.com/x", weight: 1, required_params: [], ...s })),
+    studies: studies.map((s, i) => ({ name: `s${i}`, url: "https://example.com/x", weight: 1, required_params: [], ...s })),
     fallback: FALLBACK,
   };
 }
