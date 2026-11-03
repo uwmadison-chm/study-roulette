@@ -6,10 +6,31 @@
  *   S3_BUCKET=... [S3_ENDPOINT=...] [S3_REGION=...] node scripts/check-store.ts
  *
  * Writes a few small objects under check/ and leaves them; they are harmless.
+ * --create-bucket creates S3_BUCKET first (for a fresh MinIO in CI).
  */
 import { s3StoreFromEnv } from "../src/store/s3.ts";
+import { signRequest } from "../src/store/sigv4.ts";
 
 const store = s3StoreFromEnv(process.env, { prefix: "check/" });
+
+if (process.argv.includes("--create-bucket")) {
+  const url = new URL(store.objectUrl("x").href.replace(/\/check\/x$/, ""));
+  const env = process.env;
+  const headers = await signRequest({
+    method: "PUT",
+    url,
+    region: env["S3_REGION"] ?? "us-east-1",
+    credentials: {
+      accessKeyId: env["S3_ACCESS_KEY_ID"] ?? env["AWS_ACCESS_KEY_ID"] ?? "",
+      secretAccessKey: env["S3_SECRET_ACCESS_KEY"] ?? env["AWS_SECRET_ACCESS_KEY"] ?? "",
+    },
+  });
+  const res = await fetch(url, { method: "PUT", headers });
+  if (res.status !== 200 && res.status !== 409) {
+    console.error(`FAIL: could not create bucket: ${res.status} ${await res.text()}`);
+    process.exit(1);
+  }
+}
 const run = `${Date.now()}-${crypto.randomUUID()}`;
 const fail = (msg: string): never => {
   console.error(`FAIL: ${msg}`);
