@@ -11,7 +11,7 @@ A TypeScript port of Study Roulette that runs as a single serverless function wi
 
 On each `GET` or `HEAD` with query params:
 
-1. Compute the candidate storage keys (SHA-256 of canonical JSON of the params, exactly as the Python version does) and read them all in parallel. If any exists, redirect there, merging in the current params (stored values win).
+1. Compute the candidate storage keys (SHA-256 of canonical JSON of the params, exactly as the Python version does) and read them all in parallel. If any exists, redirect there, merging in the current params (stored values win). If several exist (studies keyed on different params, visited with different param sets), the oldest wins, so a later visit never moves an earlier assignment; each object records its creation time in `x-amz-meta-created`, falling back to `Last-Modified`, and ties go to the key with the most params, then study order.
 2. Otherwise pick a study: eligible studies are those whose `required_params` are all present; the weighted choice is driven by `SHA-256(seed + "\n" + canonical params)`, so identical links always pick the same study.
 3. Create the mapping with a conditional `PUT`. If another visit created it first (412), read theirs and redirect there instead.
 
@@ -112,7 +112,7 @@ npm run dev   # http://localhost:8787, in-memory store unless S3_BUCKET is set
 Stored mappings are plain-text objects named by the same hash, so:
 
 1. Deploy, and test on the new URL.
-2. Stop the Python server, then copy its files: `aws s3 sync "$LOOKUP_DIR" s3://<bucket>/map/` (or `rclone copy`).
+2. Stop the Python server, then copy its files with the same `S3_*` settings the function uses: `npm run migrate -- "$LOOKUP_DIR"`. This keeps each file's modification time as the mapping's creation time (a plain `aws s3 sync` would stamp them all with the upload time and lose their order), never overwrites a mapping already in the bucket, and is safe to re-run.
 3. Point the recruitment link at the new URL.
 
 ## Development

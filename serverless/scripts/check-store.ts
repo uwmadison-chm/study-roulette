@@ -40,7 +40,9 @@ const fail = (msg: string): never => {
 const key = `${run}-single`;
 if (!(await store.putIfAbsent(key, "first"))) fail("first conditional create was refused");
 if (await store.putIfAbsent(key, "second")) fail("second conditional create succeeded: the store ignores If-None-Match");
-if ((await store.get(key)) !== "first") fail("stored value was overwritten");
+const entry = await store.get(key);
+if (entry?.value !== "first") fail("stored value was overwritten");
+if (!entry?.created || Math.abs(entry.created - Date.now()) > 10 * 60 * 1000) fail(`creation time not read back (${entry?.created})`);
 if ((await store.get(`${run}-missing`)) !== null) fail("missing key did not read as absent");
 
 const raceKey = `${run}-race`;
