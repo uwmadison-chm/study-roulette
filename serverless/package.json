@@ -11,6 +11,7 @@
   "scripts": {
     "build": "node scripts/build.ts",
     "test": "node --test 'test/**/*.test.ts'",
+    "test:props": "node --test 'test/**/*.prop.ts'",
     "typecheck": "node scripts/build.ts --config studies.example.json --generate-only && tsc --noEmit",
     "check-store": "node scripts/check-store.ts",
     "dev": "node scripts/build.ts && node dist/node/server.mjs",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@types/node": "^22.19.0",
     "esbuild": "^0.28.2",
+    "fast-check": "^4.10.2",
     "typescript": "^5.9.3"
   }
 }
