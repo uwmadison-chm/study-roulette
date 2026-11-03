@@ -1,0 +1,1003 @@
+{
+ "cases": [
+  {
+   "query": "email=foo%40bar.com&ts=12345",
+   "params": [
+    [
+     "email",
+     [
+      "foo@bar.com"
+     ]
+    ],
+    [
+     "ts",
+     [
+      "12345"
+     ]
+    ]
+   ],
+   "hash": "57499226b526e9e6429b0a53afbbb566746d9510ca9299022233b2af17d17ea9",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?email=foo%40bar.com&ts=12345&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?email=foo%40bar.com&ts=12345&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?email=foo%40bar.com&ts=12345&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?email=foo%40bar.com&ts=12345"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?email=stored%40x.com&ts=12345&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?email=foo%40bar.com&ts=12345"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?email=foo%40bar.com&ts=12345"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?email=foo%40bar.com&ts=12345&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "email=foo@bar.com&ts=1769010749&cn=2772222584",
+   "params": [
+    [
+     "email",
+     [
+      "foo@bar.com"
+     ]
+    ],
+    [
+     "ts",
+     [
+      "1769010749"
+     ]
+    ],
+    [
+     "cn",
+     [
+      "2772222584"
+     ]
+    ]
+   ],
+   "hash": "1e4e6c156c605e4a54fed64e16fc3744905f2ab5ad394f79d37140c3975c5939",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?email=foo%40bar.com&ts=1769010749&cn=2772222584&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?email=foo%40bar.com&ts=1769010749&cn=2772222584&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?email=foo%40bar.com&ts=1769010749&cn=2772222584&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?email=foo%40bar.com&ts=1769010749&cn=2772222584"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?email=stored%40x.com&ts=1769010749&cn=2772222584&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?email=foo%40bar.com&ts=1769010749&cn=2772222584"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?email=foo%40bar.com&ts=1769010749&cn=2772222584"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?email=foo%40bar.com&ts=1769010749&cn=2772222584&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "a=1&a=2&b=",
+   "params": [
+    [
+     "a",
+     [
+      "1",
+      "2"
+     ]
+    ],
+    [
+     "b",
+     [
+      ""
+     ]
+    ]
+   ],
+   "hash": "e1c99feac81e9e93e913720f6ca9a8054bc09b2b00b035bfb86ba0015302efd6",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?a=1&a=2&b=&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?a=1&a=2&b=&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?a=1&a=2&b=&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?a=1&a=2&b="
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?a=9&b=&email=stored%40x.com"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?a=1&a=2&b="
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?a=1&a=2&b="
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?a=1&a=2&b=&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "v=b&v=a&v=c",
+   "params": [
+    [
+     "v",
+     [
+      "b",
+      "a",
+      "c"
+     ]
+    ]
+   ],
+   "hash": "e0bd0e080317c8f3754060fc0ea1f6c8de70423d4dc87aa4418da2bf510dae1d",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?v=b&v=a&v=c&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?v=b&v=a&v=c&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?v=b&v=a&v=c&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?v=b&v=a&v=c"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?v=b&v=a&v=c&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?v=b&v=a&v=c"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?v=b&v=a&v=c"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?v=b&v=a&v=c&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "flag",
+   "params": [
+    [
+     "flag",
+     [
+      ""
+     ]
+    ]
+   ],
+   "hash": "b502ee31ec68630d342c8e131a464824c73560a28c51adc3505d82ee4e36d1f9",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?flag=&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?flag=&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?flag=&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?flag="
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?flag=&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?flag="
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?flag="
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?flag=&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "=nameless",
+   "params": [
+    [
+     "",
+     [
+      "nameless"
+     ]
+    ]
+   ],
+   "hash": "0aa820fa439fb21d9b79e7080deb5901c35c5c71de828fe10cecbd4b4900f860",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?=nameless&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?=nameless&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?=nameless&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?=nameless"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?=nameless&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?=nameless"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?=nameless"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?=nameless&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "a=1&&b=2&",
+   "params": [
+    [
+     "a",
+     [
+      "1"
+     ]
+    ],
+    [
+     "b",
+     [
+      "2"
+     ]
+    ]
+   ],
+   "hash": "593051d0986c40ebd2dcd4fca59c900cd2bc022c4b5bae54fcfc6a55a05b94b2",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?a=1&b=2&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?a=1&b=2&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?a=1&b=2&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?a=1&b=2"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?a=9&b=2&email=stored%40x.com"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?a=1&b=2"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?a=1&b=2"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?a=1&b=2&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "q=hello+world&r=a%2Bb&s=%20",
+   "params": [
+    [
+     "q",
+     [
+      "hello world"
+     ]
+    ],
+    [
+     "r",
+     [
+      "a+b"
+     ]
+    ],
+    [
+     "s",
+     [
+      " "
+     ]
+    ]
+   ],
+   "hash": "08c1c0a1b51c28ea42b74aa89e6e407de7347fb9b1e92621801cbecf65631677",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?q=hello+world&r=a%2Bb&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?q=hello+world&r=a%2Bb&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?q=1&r=a%2Bb&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?q=hello+world&r=a%2Bb&s=+"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?q=hello+world&r=a%2Bb&s=+&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?q=hello+world&r=a%2Bb&s=+"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?q=hello+world&r=a%2Bb&s=+"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?q=hello+world&r=a%2Bb&s=+&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "name=%C3%A9t%C3%A9",
+   "params": [
+    [
+     "name",
+     [
+      "été"
+     ]
+    ]
+   ],
+   "hash": "880835dafda1efc55234ae8b4bf7bc40bc76c292ea658d690f2cd94f12d8e058",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?name=%C3%A9t%C3%A9&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?name=%C3%A9t%C3%A9&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?name=%C3%A9t%C3%A9&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?name=%C3%A9t%C3%A9"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?name=%C3%A9t%C3%A9&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?name=%C3%A9t%C3%A9"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?name=%C3%A9t%C3%A9"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?name=%C3%A9t%C3%A9&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "emoji=%F0%9F%98%80&cjk=%E4%B8%AD%E6%96%87",
+   "params": [
+    [
+     "emoji",
+     [
+      "😀"
+     ]
+    ],
+    [
+     "cjk",
+     [
+      "中文"
+     ]
+    ]
+   ],
+   "hash": "373bcdb5e97878f507398cb79eb7937dc2e6495a35fea6421661f4bfcefe5a02",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?emoji=%F0%9F%98%80&cjk=%E4%B8%AD%E6%96%87&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?emoji=%F0%9F%98%80&cjk=%E4%B8%AD%E6%96%87&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?emoji=%F0%9F%98%80&cjk=%E4%B8%AD%E6%96%87&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?emoji=%F0%9F%98%80&cjk=%E4%B8%AD%E6%96%87"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?emoji=%F0%9F%98%80&cjk=%E4%B8%AD%E6%96%87&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?emoji=%F0%9F%98%80&cjk=%E4%B8%AD%E6%96%87"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?emoji=%F0%9F%98%80&cjk=%E4%B8%AD%E6%96%87"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?emoji=%F0%9F%98%80&cjk=%E4%B8%AD%E6%96%87&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "%F0%9F%98%80=astral&%EF%BF%BF=bmp-max&z=ascii",
+   "params": [
+    [
+     "😀",
+     [
+      "astral"
+     ]
+    ],
+    [
+     "￿",
+     [
+      "bmp-max"
+     ]
+    ],
+    [
+     "z",
+     [
+      "ascii"
+     ]
+    ]
+   ],
+   "hash": "17e5aeac5734f0b4661fe152b0d1d7e144029e696efe95f84538cf4ba852fbe0",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?%F0%9F%98%80=astral&%EF%BF%BF=bmp-max&z=ascii&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?%F0%9F%98%80=astral&%EF%BF%BF=bmp-max&z=ascii&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?%F0%9F%98%80=astral&%EF%BF%BF=bmp-max&z=ascii&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?%F0%9F%98%80=astral&%EF%BF%BF=bmp-max&z=ascii"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?%F0%9F%98%80=astral&%EF%BF%BF=bmp-max&z=ascii&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?%F0%9F%98%80=astral&%EF%BF%BF=bmp-max&z=ascii"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?%F0%9F%98%80=astral&%EF%BF%BF=bmp-max&z=ascii"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?%F0%9F%98%80=astral&%EF%BF%BF=bmp-max&z=ascii&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "v=%F0%9F%98%80&v=%EF%BF%BF&v=a",
+   "params": [
+    [
+     "v",
+     [
+      "😀",
+      "￿",
+      "a"
+     ]
+    ]
+   ],
+   "hash": "b924ded7784447a5d8725b8e5ce75262872dd472083b7949ce224247863a7435",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?v=%F0%9F%98%80&v=%EF%BF%BF&v=a&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?v=%F0%9F%98%80&v=%EF%BF%BF&v=a&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?v=%F0%9F%98%80&v=%EF%BF%BF&v=a&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?v=%F0%9F%98%80&v=%EF%BF%BF&v=a"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?v=%F0%9F%98%80&v=%EF%BF%BF&v=a&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?v=%F0%9F%98%80&v=%EF%BF%BF&v=a"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?v=%F0%9F%98%80&v=%EF%BF%BF&v=a"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?v=%F0%9F%98%80&v=%EF%BF%BF&v=a&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "bad=%C3&worse=%ZZ&latin=%E9&trunc=%E4%B8",
+   "params": [
+    [
+     "bad",
+     [
+      "�"
+     ]
+    ],
+    [
+     "worse",
+     [
+      "%ZZ"
+     ]
+    ],
+    [
+     "latin",
+     [
+      "�"
+     ]
+    ],
+    [
+     "trunc",
+     [
+      "�"
+     ]
+    ]
+   ],
+   "hash": "c81a475aeb4ef07d1e3b5e12ce920eb59eff3c6e7ace364257a7e0b05b152f63",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?bad=%EF%BF%BD&worse=%25ZZ&latin=%EF%BF%BD&trunc=%EF%BF%BD&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?bad=%EF%BF%BD&worse=%25ZZ&latin=%EF%BF%BD&trunc=%EF%BF%BD&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?bad=%EF%BF%BD&worse=%25ZZ&latin=%EF%BF%BD&trunc=%EF%BF%BD&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?bad=%EF%BF%BD&worse=%25ZZ&latin=%EF%BF%BD&trunc=%EF%BF%BD"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?bad=%EF%BF%BD&worse=%25ZZ&latin=%EF%BF%BD&trunc=%EF%BF%BD&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?bad=%EF%BF%BD&worse=%25ZZ&latin=%EF%BF%BD&trunc=%EF%BF%BD"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?bad=%EF%BF%BD&worse=%25ZZ&latin=%EF%BF%BD&trunc=%EF%BF%BD"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?bad=%EF%BF%BD&worse=%25ZZ&latin=%EF%BF%BD&trunc=%EF%BF%BD&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "ctrl=%00%01%1F%7F&nl=a%0Ab%0Dc%09d",
+   "params": [
+    [
+     "ctrl",
+     [
+      "\u0000\u0001\u001f"
+     ]
+    ],
+    [
+     "nl",
+     [
+      "a\nb\rc\td"
+     ]
+    ]
+   ],
+   "hash": "17440fbe8ef303a7a2150cb1f3534848b6fd22ef9746740b654f534d76f7a8cd",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?ctrl=%00%01%1F%7F&nl=a%0Ab%0Dc%09d&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?ctrl=%00%01%1F%7F&nl=a%0Ab%0Dc%09d&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?ctrl=%00%01%1F%7F&nl=a%0Ab%0Dc%09d&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?ctrl=%00%01%1F%7F&nl=a%0Ab%0Dc%09d"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?ctrl=%00%01%1F%7F&nl=a%0Ab%0Dc%09d&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?ctrl=%00%01%1F%7F&nl=a%0Ab%0Dc%09d"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?ctrl=%00%01%1F%7F&nl=a%0Ab%0Dc%09d"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?ctrl=%00%01%1F%7F&nl=a%0Ab%0Dc%09d&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "q=%22quoted%22&b=back%5Cslash",
+   "params": [
+    [
+     "q",
+     [
+      "\"quoted\""
+     ]
+    ],
+    [
+     "b",
+     [
+      "back\\slash"
+     ]
+    ]
+   ],
+   "hash": "52a18f6d7c57d0e17435cda13c452be313d2759ba2a40a8bd54137cf0f8f36f7",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?q=%22quoted%22&b=back%5Cslash&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?q=%22quoted%22&b=back%5Cslash&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?q=1&b=back%5Cslash&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?q=%22quoted%22&b=back%5Cslash"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?q=%22quoted%22&b=back%5Cslash&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?q=%22quoted%22&b=back%5Cslash"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?q=%22quoted%22&b=back%5Cslash"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?q=%22quoted%22&b=back%5Cslash&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "mixed=%C3%A9%C3",
+   "params": [
+    [
+     "mixed",
+     [
+      "é�"
+     ]
+    ]
+   ],
+   "hash": "c371dc2e097d326da8e214475225849295625f47688a2a173d14de3cc81ad74b",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?mixed=%C3%A9%EF%BF%BD&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?mixed=%C3%A9%EF%BF%BD&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?mixed=%C3%A9%EF%BF%BD&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?mixed=%C3%A9%EF%BF%BD"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?mixed=%C3%A9%EF%BF%BD&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?mixed=%C3%A9%EF%BF%BD"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?mixed=%C3%A9%EF%BF%BD"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?mixed=%C3%A9%EF%BF%BD&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "email=Foo%40Bar.com&EMAIL=x",
+   "params": [
+    [
+     "email",
+     [
+      "Foo@Bar.com"
+     ]
+    ],
+    [
+     "EMAIL",
+     [
+      "x"
+     ]
+    ]
+   ],
+   "hash": "6ae6caba8b7d008c2e0131808e7f16b4752e6603f675a19cc57649152230a60e",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?email=Foo%40Bar.com&EMAIL=x&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?email=Foo%40Bar.com&EMAIL=x&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?email=Foo%40Bar.com&EMAIL=x&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?email=Foo%40Bar.com&EMAIL=x"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?email=stored%40x.com&EMAIL=x&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?email=Foo%40Bar.com&EMAIL=x"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?email=Foo%40Bar.com&EMAIL=x"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?email=Foo%40Bar.com&EMAIL=x&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "a=1;b=2",
+   "params": [
+    [
+     "a",
+     [
+      "1;b=2"
+     ]
+    ]
+   ],
+   "hash": "02fdfbc2bc4cc189d75369bc3581de868505891101e4e7d992c4a8dd9b688bbf",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?a=1%3Bb%3D2&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?a=1%3Bb%3D2&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?a=1%3Bb%3D2&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?a=1%3Bb%3D2"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?a=9&email=stored%40x.com"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?a=1%3Bb%3D2"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?a=1%3Bb%3D2"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?a=1%3Bb%3D2&empty=&dup=1&dup=2"
+    }
+   ]
+  },
+  {
+   "query": "tilde=~&star=*&paren=()&slash=/&colon=:",
+   "params": [
+    [
+     "tilde",
+     [
+      "~"
+     ]
+    ],
+    [
+     "star",
+     [
+      "*"
+     ]
+    ],
+    [
+     "paren",
+     [
+      "()"
+     ]
+    ],
+    [
+     "slash",
+     [
+      "/"
+     ]
+    ],
+    [
+     "colon",
+     [
+      ":"
+     ]
+    ]
+   ],
+   "hash": "bd466b33e66e0c3a02a021dd1b57a84d9318a3cd97482cbdbd20d1e23acdc056",
+   "merges": [
+    {
+     "base": "https://example.com/survey?s=abc",
+     "result": "https://example.com/survey?tilde=~&star=%2A&paren=%28%29&slash=%2F&colon=%3A&s=abc"
+    },
+    {
+     "base": "https://redcap.example.edu/surveys/?s=12345678",
+     "result": "https://redcap.example.edu/surveys/?tilde=~&star=%2A&paren=%28%29&slash=%2F&colon=%3A&s=12345678"
+    },
+    {
+     "base": "https://ex.com/p;x?q=1&s=2#frag",
+     "result": "https://ex.com/p;x?tilde=~&star=%2A&paren=%28%29&slash=%2F&colon=%3A&q=1&s=2#frag"
+    },
+    {
+     "base": "HTTPS://Ex.com/a",
+     "result": "https://Ex.com/a?tilde=~&star=%2A&paren=%28%29&slash=%2F&colon=%3A"
+    },
+    {
+     "base": "https://e.com/?email=stored%40x.com&a=9",
+     "result": "https://e.com/?tilde=~&star=%2A&paren=%28%29&slash=%2F&colon=%3A&email=stored%40x.com&a=9"
+    },
+    {
+     "base": "https://e.com/a?",
+     "result": "https://e.com/a?tilde=~&star=%2A&paren=%28%29&slash=%2F&colon=%3A"
+    },
+    {
+     "base": "https://e.com/a#",
+     "result": "https://e.com/a?tilde=~&star=%2A&paren=%28%29&slash=%2F&colon=%3A"
+    },
+    {
+     "base": "https://e.com/a?empty=&dup=1&dup=2",
+     "result": "https://e.com/a?tilde=~&star=%2A&paren=%28%29&slash=%2F&colon=%3A&empty=&dup=1&dup=2"
+    }
+   ]
+  }
+ ]
+}

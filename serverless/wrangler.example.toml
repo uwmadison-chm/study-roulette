@@ -1,0 +1,19 @@
+# Copy to wrangler.toml, then:
+#   npm run build
+#   npx wrangler secret put S3_ACCESS_KEY_ID      # R2 API token's access key id
+#   npx wrangler secret put S3_SECRET_ACCESS_KEY  # R2 API token's secret
+#   npx wrangler deploy
+name = "study-roulette"
+main = "dist/worker/worker.mjs"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[vars]
+S3_ENDPOINT = "https://<account-id>.r2.cloudflarestorage.com"
+S3_BUCKET = "study-roulette"
+S3_REGION = "auto"
+S3_PREFIX = "map/"
+LOG_LEVEL = "info"
+
+[observability]
+enabled = true

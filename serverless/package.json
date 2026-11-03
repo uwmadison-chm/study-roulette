@@ -1,0 +1,24 @@
+{
+  "name": "study-roulette-serverless",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Study Roulette as a serverless function with S3-compatible storage",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "test": "node --test 'test/**/*.test.ts'",
+    "typecheck": "node scripts/build.ts --config studies.example.json --generate-only && tsc --noEmit",
+    "check-store": "node scripts/check-store.ts",
+    "dev": "node scripts/build.ts && node dist/node/server.mjs",
+    "golden": "cd .. && uv run python serverless/scripts/make_golden.py > serverless/test/golden.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3"
+  }
+}

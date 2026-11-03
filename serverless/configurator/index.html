@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study Roulette Configurator</title>
+<style>
+  :root {
+    --bg: #fafaf8; --fg: #1d1d1b; --muted: #6b6b66; --line: #d9d8d2; --card: #ffffff;
+    --accent: #2f5fa7; --bad: #b3261e; --bad-bg: #fbebeb; --warn-bg: #f9eeda; --ok-bg: #e5f4e4;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a19; --fg: #ecebe6; --muted: #a3a29b; --line: #3a3a37; --card: #232322;
+      --accent: #8ab4f8; --bad: #f2b8b5; --bad-bg: #3b2322; --warn-bg: #3a3122; --ok-bg: #213224;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 8px; }
+  p.lead { color: var(--muted); margin: 0 0 16px; }
+  section.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button, label.button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  input[type=text], input[type=number], input[type=url] { font: inherit; width: 100%; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--fg); }
+  .study { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .study .full { grid-column: 1 / -1; }
+  .study label, .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .study .actions { grid-column: 1 / -1; display: flex; gap: 6px; justify-content: flex-end; }
+  .study .actions button { padding: 3px 8px; font-size: 13px; }
+  @media (max-width: 640px) { .study { grid-template-columns: 1fr; } }
+  ul.msgs { margin: 0; padding-left: 20px; }
+  .box { border-radius: 6px; padding: 10px 12px; margin: 8px 0; }
+  .box.bad { background: var(--bad-bg); }
+  .box.warn { background: var(--warn-bg); }
+  .box.ok { background: var(--ok-bg); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  code { font-family: ui-monospace, monospace; font-size: 13px; }
+  .muted { color: var(--muted); }
+  .drop { outline: 2px dashed var(--accent); outline-offset: -8px; }
+  .scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Study Roulette configurator</h1>
+  <p class="lead">Edit <code>studies.json</code>, check it, and download it to commit. Nothing leaves this page.</p>
+
+  <section class="card">
+    <div class="toolbar">
+      <label class="button">Open studies.json…<input id="file" type="file" accept=".json,application/json" hidden></label>
+      <button id="new">Start new</button>
+      <span class="muted" id="source">No file loaded. Drop a file anywhere on the page.</span>
+    </div>
+  </section>
+
+  <div id="editor" hidden>
+    <section class="card">
+      <h2 style="margin-top:0">Studies</h2>
+      <p class="muted" style="margin-top:0">A visitor is eligible for a study when every required param is present (blank counts). Key params decide which params keep an assignment stable; leave empty to key on every param in the link.</p>
+      <div id="studies"></div>
+      <button id="add">Add study</button>
+
+      <h2>Fallback</h2>
+      <p class="muted" style="margin-top:0">Used only when no eligible study has a positive weight. Always keyed on every param.</p>
+      <div class="study">
+        <div class="full"><label for="fb-url">URL</label><input id="fb-url" type="url"></div>
+        <div class="full"><label for="fb-note">Note</label><input id="fb-note" type="text"></div>
+      </div>
+
+      <h2>Seed</h2>
+      <p class="muted" style="margin-top:0">Mixed into each link's params to pick a study, so identical links always land on the same study. Not a secret. Changing it only affects links that have never been visited.</p>
+      <div class="toolbar"><code id="seed"></code><button id="reseed">Generate new seed</button></div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Check</h2>
+      <div id="validation"></div>
+      <div id="changes"></div>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="primary" id="download">Download studies.json</button>
+        <button id="copy">Copy JSON</button>
+        <span class="muted" id="copied"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Preview a link</h2>
+      <div class="field"><label for="sample">Paste a recruitment link, or just its query string</label>
+        <input id="sample" type="text" placeholder="https://example.edu/sr?email=foo@bar.baz&amp;ts=1769010749"></div>
+      <div id="preview" class="scroll"></div>
+    </section>
+  </div>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
