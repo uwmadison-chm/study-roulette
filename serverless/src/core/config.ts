@@ -4,6 +4,8 @@
  */
 
 export interface Study {
+  /** Short identifier used in the randomization log; [a-z0-9_-], unique. */
+  name: string;
   url: string;
   weight: number;
   note?: string;
@@ -14,6 +16,8 @@ export interface Study {
 }
 
 export interface Fallback {
+  /** Like a study's name; must differ from every study's. */
+  name: string;
   url: string;
   note?: string;
 }
@@ -27,6 +31,9 @@ export interface Config {
   studies: Study[];
   fallback: Fallback;
 }
+
+/** Allowed study names: safe in object keys and file names on every OS. */
+export const NAME_PATTERN = /^[a-z0-9_-]{1,64}$/;
 
 export interface ValidationResult {
   config: Config | null;
@@ -81,8 +88,8 @@ function checkNote(entry: Record<string, unknown>, label: string, errors: string
   return note;
 }
 
-const STUDY_KEYS = new Set(["url", "weight", "note", "required_params", "key_params"]);
-const FALLBACK_KEYS = new Set(["url", "note"]);
+const STUDY_KEYS = new Set(["name", "url", "weight", "note", "required_params", "key_params"]);
+const FALLBACK_KEYS = new Set(["name", "url", "note"]);
 
 function checkStudy(entry: unknown, index: number, errors: string[]): Study | null {
   const label = `studies[${index}]`;
@@ -93,6 +100,10 @@ function checkStudy(entry: unknown, index: number, errors: string[]): Study | nu
   const before = errors.length;
   for (const k of Object.keys(entry)) {
     if (!STUDY_KEYS.has(k)) errors.push(`${label}: unknown key '${k}'`);
+  }
+  const name = entry["name"];
+  if (typeof name !== "string" || !NAME_PATTERN.test(name)) {
+    errors.push(`${label}: 'name' must be 1-64 characters of a-z, 0-9, _ or -`);
   }
   const url = checkUrl(entry["url"], label, errors);
   const weight = entry["weight"];
@@ -115,6 +126,7 @@ function checkStudy(entry: unknown, index: number, errors: string[]): Study | nu
   }
   if (errors.length > before || url === null) return null;
   const study: Study = {
+    name: name as string,
     url,
     weight: weight as number,
     required_params: required ?? [],
@@ -139,12 +151,18 @@ export function validateConfig(data: unknown): ValidationResult {
   }
 
   const studies: Study[] = [];
+  let studiesSeen = new Set<string>();
   if (!Array.isArray(data["studies"])) {
     errors.push("'studies' must be an array");
   } else {
+    const seen = new Set<string>();
+    studiesSeen = seen;
     data["studies"].forEach((entry, i) => {
       const s = checkStudy(entry, i, errors);
-      if (s) studies.push(s);
+      if (!s) return;
+      if (seen.has(s.name)) errors.push(`studies[${i}]: duplicate name '${s.name}'`);
+      seen.add(s.name);
+      studies.push(s);
     });
   }
 
@@ -156,9 +174,13 @@ export function validateConfig(data: unknown): ValidationResult {
     for (const k of Object.keys(fb)) {
       if (!FALLBACK_KEYS.has(k)) errors.push(`fallback: must not have '${k}'`);
     }
+    const name = fb["name"];
+    const nameOk = typeof name === "string" && NAME_PATTERN.test(name);
+    if (!nameOk) errors.push("fallback: 'name' must be 1-64 characters of a-z, 0-9, _ or -");
+    else if (studiesSeen.has(name)) errors.push(`fallback: name '${name}' is already used by a study`);
     const url = checkUrl(fb["url"], "fallback", errors);
     const note = checkNote(fb, "fallback", errors);
-    if (url) fallback = note === undefined ? { url } : { url, note };
+    if (url && nameOk) fallback = note === undefined ? { name, url } : { name, url, note };
   }
 
   if (errors.length || !fallback) return { config: null, errors };

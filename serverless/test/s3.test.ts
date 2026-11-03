@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { signRequest } from "../src/store/sigv4.ts";
-import { S3Store } from "../src/store/s3.ts";
+import { logStoreFromEnv, S3Store } from "../src/store/s3.ts";
 
 // Worked examples from the AWS S3 SigV4 documentation ("Signature
 // Calculations for the Authorization Header: Transferring Payload in a
@@ -97,4 +97,35 @@ test("virtual-hosted style URLs", () => {
     String(store([], [], false).objectUrl("abc")),
     "https://my-bucket.s3.us-east-1.amazonaws.com/map/abc",
   );
+});
+
+test("listKeys pages through ListObjectsV2 and strips the store prefix", async () => {
+  const seen: string[] = [];
+  const pages = [
+    `<ListBucketResult><IsTruncated>true</IsTruncated><Contents><Key>log/a/20261103T000000Z_00</Key></Contents><NextContinuationToken>t&amp;1</NextContinuationToken></ListBucketResult>`,
+    `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>log/b/20261103T000001Z_01</Key></Contents></ListBucketResult>`,
+  ];
+  const s = new S3Store({
+    endpoint: "https://s3.us-east-1.amazonaws.com",
+    bucket: "logs",
+    region: "us-east-1",
+    prefix: "log/",
+    credentials,
+    fetch: (async (input: URL | RequestInfo) => {
+      seen.push(String(input));
+      return new Response(pages.shift()!, { status: 200 });
+    }) as typeof fetch,
+  });
+  const keys: string[] = [];
+  for await (const k of s.listKeys()) keys.push(k);
+  assert.deepEqual(keys, ["a/20261103T000000Z_00", "b/20261103T000001Z_01"]);
+  assert.match(seen[0]!, /^https:\/\/s3\.us-east-1\.amazonaws\.com\/logs\?list-type=2&prefix=log%2F$/);
+  assert.match(seen[1]!, /continuation-token=t%261/);
+});
+
+test("logStoreFromEnv is off unless LOG_S3_BUCKET is set, and uses that bucket", () => {
+  const env = { S3_BUCKET: "maps", AWS_ACCESS_KEY_ID: "a", AWS_SECRET_ACCESS_KEY: "b" };
+  assert.equal(logStoreFromEnv(env), null);
+  const s = logStoreFromEnv({ ...env, LOG_S3_BUCKET: "logs" })!;
+  assert.equal(String(s.objectUrl("x/y")), "https://s3.us-east-1.amazonaws.com/logs/x/y");
 });
