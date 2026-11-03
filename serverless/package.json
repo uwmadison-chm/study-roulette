@@ -14,6 +14,7 @@
     "test:props": "node --test 'test/**/*.prop.ts'",
     "typecheck": "node scripts/build.ts --config studies.example.json --generate-only && tsc --noEmit",
     "check-store": "node scripts/check-store.ts",
+    "migrate": "node scripts/migrate.ts",
     "dev": "node scripts/build.ts && node dist/node/server.mjs",
     "golden": "cd .. && uv run python serverless/scripts/make_golden.py > serverless/test/golden.json"
   },

@@ -51,6 +51,28 @@ jobs:
           S3_ACCESS_KEY_ID: minioadmin
           S3_SECRET_ACCESS_KEY: minioadmin
         run: node scripts/check-store.ts --create-bucket
+      - name: Migrate Python mappings, keeping their timestamps
+        env:
+          S3_ENDPOINT: http://localhost:9000
+          S3_BUCKET: roulette
+          S3_REGION: us-east-1
+          S3_ACCESS_KEY_ID: minioadmin
+          S3_SECRET_ACCESS_KEY: minioadmin
+        run: |
+          dir=$(mktemp -d)
+          key=$(printf 'migrate-check-%s' "$GITHUB_RUN_ID" | sha256sum | cut -d' ' -f1)
+          echo "https://example.com/legacy?id=1" > "$dir/$key"
+          touch -d 2020-01-02T03:04:05Z "$dir/$key"
+          node scripts/migrate.ts "$dir" | tee out1
+          grep -q "1 created" out1
+          node scripts/migrate.ts "$dir" | tee out2
+          grep -q "1 already present (0 conflicting)" out2
+          KEY=$key node --input-type=module -e '
+            import { s3StoreFromEnv } from "./src/store/s3.ts";
+            const e = await s3StoreFromEnv(process.env).get(process.env.KEY);
+            console.log(e);
+            if (e?.created !== Date.parse("2020-01-02T03:04:05Z")) process.exit(1);
+          '
       - name: End to end with the randomization log
         env:
           S3_ENDPOINT: http://localhost:9000

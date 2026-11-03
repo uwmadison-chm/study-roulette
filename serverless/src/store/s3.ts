@@ -1,5 +1,5 @@
 import { encodeSegment, signRequest, type Credentials } from "./sigv4.ts";
-import type { Store } from "./types.ts";
+import type { Entry, Store } from "./types.ts";
 
 export interface S3StoreOptions {
   /** e.g. https://s3.us-east-1.amazonaws.com or https://<account>.r2.cloudflarestorage.com */
@@ -93,7 +93,7 @@ export class S3Store implements Store {
     return `${base.protocol}//${this.opts.bucket}.${base.host}/`;
   }
 
-  async get(key: string): Promise<string | null> {
+  async get(key: string): Promise<Entry | null> {
     const res = await this.send("GET", key);
     if (res.status === 404) {
       await res.body?.cancel();
@@ -107,16 +107,23 @@ export class S3Store implements Store {
           : "";
       throw new S3Error(`S3 GET ${key} failed: ${res.status}${hint} ${detail}`, res.status);
     }
-    const text = (await res.text()).trim();
-    return text || null;
+    const value = (await res.text()).trim();
+    if (!value) return null;
+    // Our own writes record the creation time in ms; otherwise (e.g. objects
+    // copied in without it) fall back to Last-Modified
+    const meta = Number(res.headers.get("x-amz-meta-created"));
+    const modified = Date.parse(res.headers.get("last-modified") ?? "");
+    const created = Number.isFinite(meta) && meta > 0 ? meta : Number.isFinite(modified) ? modified : undefined;
+    return created === undefined ? { value } : { value, created };
   }
 
-  async putIfAbsent(key: string, value: string): Promise<boolean> {
+  async putIfAbsent(key: string, value: string, created: number = Date.now()): Promise<boolean> {
     // 409 means a concurrent delete raced us (AWS); one retry is enough
     for (let attempt = 0; attempt < 2; attempt++) {
       const res = await this.send("PUT", key, value, {
         "content-type": "text/plain; charset=utf-8",
         "if-none-match": "*",
+        "x-amz-meta-created": String(Math.round(created)),
       });
       const detail = res.status === 200 ? "" : (await res.text()).slice(0, 300);
       if (res.status === 200) {

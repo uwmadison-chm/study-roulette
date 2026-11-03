@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { computeHash } from "../src/core/hash.ts";
-import { candidateHashes, chooseStudy, resolve, seededUniform } from "../src/core/roulette.ts";
+import { candidateHashes, chooseStudy, oldestHit, resolve, seededUniform } from "../src/core/roulette.ts";
 import { MemoryStore } from "../src/store/memory.ts";
 import { config, FALLBACK, gate, params } from "./helpers.ts";
 
@@ -119,6 +119,32 @@ describe("resolve", () => {
     store.data.set(await computeHash(p), "https://example.com/legacy?email=foo%40bar.com&ts=12345\n");
     const c = config([{ url: "https://example.com/new", required_params: ["email"], key_params: ["email"] }]);
     assert.equal(await resolve(store, c, p), "https://example.com/legacy?email=foo%40bar.com&ts=12345");
+  });
+});
+
+describe("oldest mapping wins", () => {
+  test("oldestHit picks the earliest creation time; ties and unknowns go to precedence", () => {
+    assert.equal(oldestHit([null, null]), -1);
+    assert.equal(oldestHit([{ value: "a", created: 2 }, { value: "b", created: 1 }]), 1);
+    assert.equal(oldestHit([{ value: "a", created: 1 }, { value: "b", created: 1 }]), 0);
+    assert.equal(oldestHit([{ value: "a" }, { value: "b", created: 5 }]), 1);
+    assert.equal(oldestHit([{ value: "a" }, { value: "b" }]), 0);
+    assert.equal(oldestHit([null, { value: "b", created: 9 }]), 1);
+  });
+
+  test("a later visit under a higher-precedence key does not move an earlier assignment", async () => {
+    // Study a keys on email but cannot be chosen (weight 0); study b keys on id
+    const c = config([
+      { url: "https://example.com/a", weight: 0, required_params: ["email"], key_params: ["email"] },
+      { url: "https://example.com/b", required_params: ["id"], key_params: ["id"] },
+    ]);
+    const store = new MemoryStore();
+    const first = await resolve(store, c, params({ email: "e@x", id: "7" }));
+    assert.ok(first.startsWith("https://example.com/b"));
+    // Only email: falls back, stored under the email key, which outranks id
+    const other = await resolve(store, c, params({ email: "e@x" }));
+    assert.ok(other.startsWith(FALLBACK.url));
+    assert.equal(await resolve(store, c, params({ email: "e@x", id: "7" })), first);
   });
 });
 

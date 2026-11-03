@@ -1,7 +1,7 @@
 import type { Config, Study } from "./config.ts";
 import { canonicalJson, computeHash, sha256 } from "./hash.ts";
 import type { Params } from "./params.ts";
-import type { Store } from "../store/types.ts";
+import type { Entry, Store } from "../store/types.ts";
 import { mergeUrl } from "./urls.ts";
 
 /** Studies whose required_params are all present (blank counts as present). */
@@ -80,16 +80,19 @@ export interface Resolution {
  * Get the stored destination for these params, or assign and store one.
  *
  * A stored mapping always wins, and its parameters win over the current
- * visit's. New mappings are created with a conditional write, so of any
+ * visit's. When several candidate keys hold mappings (studies keyed on
+ * different params, visited with different param sets), the oldest wins, so
+ * a later visit can never move an earlier assignment; ties fall back to
+ * candidate precedence. New mappings are created with a conditional write, so of any
  * number of concurrent visits racing for one key, exactly one is stored and
  * every visit returns it.
  */
 export async function resolveDetailed(store: Store, config: Config, params: Params): Promise<Resolution> {
-  // Read every candidate in parallel (one round trip), then honor precedence
+  // Read every candidate in parallel (one round trip)
   const hashes = await candidateHashes(config.studies, params);
   const found = await Promise.all(hashes.map((hash) => store.get(hash)));
-  const hit = found.findIndex((v) => v !== null);
-  if (hit !== -1) return { url: mergeUrl(found[hit]!, params), outcome: "existing", key: hashes[hit]! };
+  const hit = oldestHit(found);
+  if (hit !== -1) return { url: mergeUrl(found[hit]!.value, params), outcome: "existing", key: hashes[hit]! };
 
   const chosen = chooseStudy(
     eligibleStudies(config.studies, params),
@@ -111,7 +114,26 @@ export async function resolveDetailed(store: Store, config: Config, params: Para
   // Someone else created this mapping between our read and our write
   const winner = await store.get(key);
   if (winner === null) throw new Error(`mapping ${key} vanished after conditional write conflict`);
-  return { url: mergeUrl(winner, params), outcome: "race_lost", key };
+  return { url: mergeUrl(winner.value, params), outcome: "race_lost", key };
+}
+
+/**
+ * Index of the entry to use: the oldest by creation time, ties (or unknown
+ * times) going to the earlier candidate. -1 if nothing was found.
+ */
+export function oldestHit(found: (Entry | null)[]): number {
+  let best = -1;
+  for (const [i, e] of found.entries()) {
+    if (e === null) continue;
+    if (best === -1) {
+      best = i;
+      continue;
+    }
+    const a = e.created ?? Infinity;
+    const b = found[best]!.created ?? Infinity;
+    if (a < b) best = i;
+  }
+  return best;
 }
 
 export async function resolve(store: Store, config: Config, params: Params): Promise<string> {

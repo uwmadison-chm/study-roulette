@@ -47,7 +47,11 @@ test("SigV4 matches the AWS PUT Object example", async () => {
   );
 });
 
-function fakeFetch(responses: number[], seen: { method: string; url: string; headers: Record<string, string> }[]) {
+function fakeFetch(
+  responses: number[],
+  seen: { method: string; url: string; headers: Record<string, string> }[],
+  responseHeaders: Record<string, string> = {},
+) {
   return (async (input: URL | RequestInfo, init?: RequestInit) => {
     seen.push({
       method: init?.method ?? "GET",
@@ -55,11 +59,11 @@ function fakeFetch(responses: number[], seen: { method: string; url: string; hea
       headers: init?.headers as Record<string, string>,
     });
     const status = responses.shift() ?? 500;
-    return new Response(status === 200 ? "https://example.com/a?x=1\n" : "", { status });
+    return new Response(status === 200 ? "https://example.com/a?x=1\n" : "", { status, headers: responseHeaders });
   }) as typeof fetch;
 }
 
-const store = (responses: number[], seen: any[] = [], pathStyle = true) =>
+const store = (responses: number[], seen: any[] = [], pathStyle = true, responseHeaders: Record<string, string> = {}) =>
   new S3Store({
     endpoint: "https://s3.us-east-1.amazonaws.com",
     bucket: "my-bucket",
@@ -67,11 +71,11 @@ const store = (responses: number[], seen: any[] = [], pathStyle = true) =>
     prefix: "map/",
     pathStyle,
     credentials,
-    fetch: fakeFetch(responses, seen),
+    fetch: fakeFetch(responses, seen, responseHeaders),
   });
 
 test("S3Store.get: 200 trims, 404 is null, others throw", async () => {
-  assert.equal(await store([200]).get("abc"), "https://example.com/a?x=1");
+  assert.deepEqual(await store([200]).get("abc"), { value: "https://example.com/a?x=1" });
   assert.equal(await store([404]).get("abc"), null);
   await assert.rejects(store([403]).get("abc"), /403.*ListBucket/);
 });
@@ -84,6 +88,24 @@ test("S3Store.putIfAbsent sends If-None-Match and maps 200/412", async () => {
   assert.equal(seen[0].headers["if-none-match"], "*");
   assert.match(seen[0].headers["authorization"], /SignedHeaders=.*if-none-match/);
   assert.equal(await store([412]).putIfAbsent("abc", "v"), false);
+});
+
+test("S3Store.get reads creation time from metadata, else Last-Modified", async () => {
+  const lastModified = "Wed, 21 Oct 2015 07:28:00 GMT";
+  const meta = await store([200], [], true, { "x-amz-meta-created": "1700000000123", "last-modified": lastModified }).get("abc");
+  assert.equal(meta?.created, 1700000000123);
+  const modified = await store([200], [], true, { "last-modified": lastModified }).get("abc");
+  assert.equal(modified?.created, Date.parse(lastModified));
+});
+
+test("S3Store.putIfAbsent records the creation time", async () => {
+  const seen: any[] = [];
+  await store([200], seen).putIfAbsent("abc", "v", 1700000000123);
+  assert.equal(seen[0].headers["x-amz-meta-created"], "1700000000123");
+  assert.match(seen[0].headers["authorization"], /SignedHeaders=.*x-amz-meta-created/);
+  const before = Date.now();
+  await store([200], seen).putIfAbsent("abc", "v");
+  assert.ok(Number(seen[1].headers["x-amz-meta-created"]) >= before);
 });
 
 test("S3Store.putIfAbsent retries one 409, then fails on others", async () => {
