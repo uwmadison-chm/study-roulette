@@ -15,6 +15,8 @@ This randomization is stable -- the same initial link will randomize to the same
 
 ## Implementation
 
+A serverless TypeScript version that stores mappings in an S3-compatible bucket lives in [`serverless/`](serverless/README.md). It reads the same stored mappings as this one.
+
 This project uses python and fastapi. It does not have a traditional database; it uses text files stored in the filesystem. This should be performant enough for up to a few hundred thousand unique redirect URLs.
 
 Required settings, sent in environment variables:
