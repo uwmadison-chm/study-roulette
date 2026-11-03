@@ -34,7 +34,7 @@ export async function handle(request: Request, deps: HandlerDeps): Promise<Respo
   }
 
   const url = new URL(request.url);
-  const params = parseQuery(url.search);
+  const params = parseQuery(url.search.slice(1));
   if (params.size === 0) {
     return Response.json({ errors: ["No parameters specified"] }, { status: 404, headers });
   }

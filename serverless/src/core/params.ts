@@ -36,13 +36,12 @@ export function unquote(s: string): string {
 }
 
 /**
- * Parse a raw query string (without the leading "?") the way
+ * Parse a raw query string (without the leading "?"; a "?" here is data) the way
  * urllib.parse.parse_qsl(keep_blank_values=True) does: split on "&", skip
  * empty pieces, split each on the first "=", treat "+" as space.
  */
 export function parseQuery(raw: string): Params {
   const params: Params = new Map();
-  if (raw.startsWith("?")) raw = raw.slice(1);
   for (const piece of raw.split("&")) {
     if (!piece) continue;
     const eq = piece.indexOf("=");
