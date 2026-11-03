@@ -121,6 +121,14 @@ Stored mappings are plain-text objects named by the same hash, so:
 npm test          # unit, race, and Python-compatibility tests
 npm run typecheck
 npm run golden    # regenerate test/golden.json from the Python implementation
+npm run test:props  # property tests (local only; needs uv for the Python oracle)
 ```
+
+`npm run test:props` runs [fast-check](https://fast-check.dev/) properties that are kept out of `npm test` and CI:
+
+- **Python parity** (`test/parity.prop.ts`): random query strings (percent-escapes of every byte, invalid UTF-8, `+`, `=`, `&`, astral characters) and base URLs go through both implementations, with the Python code running as a subprocess oracle; parsed params, hashes, and merged URLs must match exactly. Failures shrink to a minimal query.
+- **Core properties** (`test/properties.prop.ts`): hashing ignores param and value order, `urlencode`/`parseQuery` round-trip, merge precedence and idempotence, the seeded choice always picks an eligible weighted study, stored assignments never change, and concurrent identical visits under any interleaving (fast-check's scheduler) store exactly one mapping.
+
+The default is a few thousand cases and takes about 5 seconds; `PROP_RUNS=50000 npm run test:props` searches longer.
 
 `test/golden.json` holds query parsing, hashing, and URL merging results produced by the Python code; the TypeScript must match them byte for byte, or existing participants would be re-randomized. CI also runs `check-store` against a real MinIO.
