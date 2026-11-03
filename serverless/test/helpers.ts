@@ -6,7 +6,7 @@ export const FALLBACK = { url: "https://example.com/fallback", note: "registry" 
 export function config(studies: Partial<Study>[], seed = "test-seed"): Config {
   return {
     seed,
-    studies: studies.map((s) => ({ url: "https://example.com/x", weight: 1, required_params: [], ...s })),
+    studies: studies.map((s, i) => ({ name: `s${i}`, url: "https://example.com/x", weight: 1, required_params: [], ...s })),
     fallback: FALLBACK,
   };
 }

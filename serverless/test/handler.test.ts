@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { handle } from "../src/core/handler.ts";
+import { compactTimestamp, handle } from "../src/core/handler.ts";
 import { MemoryStore } from "../src/store/memory.ts";
 import type { Store } from "../src/store/types.ts";
 import { config } from "./helpers.ts";
@@ -57,7 +57,7 @@ test("info logs one JSON line per redirect without raw params", async () => {
   await handle(new Request("https://x/?email=a%40b.c"), { ...deps(store), log: (m) => logged.push(m) });
   const [first, second] = logged.map((l) => JSON.parse(l));
   assert.equal(first.outcome, "created");
-  assert.equal(first.study, "https://example.com/survey?s=abc");
+  assert.equal(first.study, "s0");
   assert.equal(second.outcome, "existing");
   assert.equal(first.key.length, 12);
   assert.ok(!logged.join("").includes("a@b.c"));
@@ -70,4 +70,61 @@ test("debug adds params; error level logs only failures", async () => {
   logged.length = 0;
   await handle(new Request("https://x/?email=a%40b.c"), { ...deps(), log: (m) => logged.push(m), logLevel: "error" });
   assert.equal(logged.length, 0);
+});
+
+test("each new assignment writes one zero-byte randomization log entry", async () => {
+  const store = new MemoryStore();
+  const log = new MemoryStore();
+  const at = new Date("2026-11-03T16:42:31.456Z");
+  const d = { ...deps(store), randomizationLog: log, now: () => at };
+  await handle(new Request("https://x/?email=a"), d);
+  await handle(new Request("https://x/?email=a"), d); // returning visitor: no entry
+  await handle(new Request("https://x/?email=b"), d);
+  const keys = [...log.data.keys()].sort();
+  assert.equal(keys.length, 2);
+  for (const k of keys) assert.match(k, /^s0\/20261103T164231Z_[0-9a-f]{8}$/);
+  assert.ok([...log.data.values()].every((v) => v === ""));
+});
+
+test("fallback assignments are logged under 'fallback'", async () => {
+  const log = new MemoryStore();
+  const c = config([{ url: "https://example.com/a", required_params: ["email"] }]);
+  await handle(new Request("https://x/?id=1"), { store: new MemoryStore(), config: c, buildId: "b", randomizationLog: log });
+  assert.match([...log.data.keys()][0]!, /^fallback\/\d{8}T\d{6}Z_/);
+});
+
+test("a failed log write still redirects and is logged", async () => {
+  const logged: string[] = [];
+  const broken: Store = {
+    get: async () => null,
+    putIfAbsent: async () => {
+      throw new Error("log bucket down");
+    },
+  };
+  const res = await handle(new Request("https://x/?a=1"), { ...deps(), randomizationLog: broken, log: (m) => logged.push(m) });
+  assert.equal(res.status, 302);
+  assert.ok(logged.some((l) => JSON.parse(l).event === "randomization_log_error"));
+});
+
+test("compactTimestamp has no separators", () => {
+  assert.equal(compactTimestamp(new Date("2026-01-02T03:04:05.678Z")), "20260102T030405Z");
+});
+
+test("concurrent duplicate visits log one randomization", async () => {
+  const N = 6;
+  let reads = 0;
+  let open!: () => void;
+  const allRead = new Promise<void>((r) => (open = r));
+  const store = new MemoryStore({
+    afterGet: async () => {
+      if (++reads === N) open();
+      await allRead;
+    },
+  });
+  const log = new MemoryStore();
+  const responses = await Promise.all(
+    Array.from({ length: N }, () => handle(new Request("https://x/?email=a"), { ...deps(store), randomizationLog: log })),
+  );
+  assert.equal(new Set(responses.map((r) => r.headers.get("location"))).size, 1);
+  assert.equal(log.data.size, 1);
 });

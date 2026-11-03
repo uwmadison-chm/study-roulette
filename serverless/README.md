@@ -27,14 +27,14 @@ Routing lives in `studies.json`:
 {
   "seed": "3f1c9a…",
   "studies": [
-    {"url": "https://redcap.example.edu/surveys/?s=12345678", "weight": 1, "note": "Control", "required_params": ["email"], "key_params": ["email"]},
-    {"url": "https://redcap.example.edu/surveys/?s=abcdef12", "weight": 2, "note": "Treatment", "required_params": ["email", "ts"], "key_params": ["email"]}
+    {"name": "control", "url": "https://redcap.example.edu/surveys/?s=12345678", "weight": 1, "note": "Control", "required_params": ["email"], "key_params": ["email"]},
+    {"name": "treatment", "url": "https://redcap.example.edu/surveys/?s=abcdef12", "weight": 2, "note": "Treatment", "required_params": ["email", "ts"], "key_params": ["email"]}
   ],
   "fallback": {"url": "https://redcap.example.edu/surveys/?s=fa11back", "note": "Registry"}
 }
 ```
 
-Semantics of `weight`, `required_params`, `key_params`, and `fallback` are unchanged from the Python version (see the root README). `seed` is not a secret; it only changes which study never-visited links land on.
+Semantics of `weight`, `required_params`, `key_params`, and `fallback` are unchanged from the Python version (see the root README). `seed` is not a secret; it only changes which study never-visited links land on. Each study's `name` (1-64 characters of `a-z`, `0-9`, `_`, `-`; unique; `fallback` is reserved) identifies it in logs and the randomization log.
 
 ### Configurator
 
@@ -62,6 +62,8 @@ python3 scripts/toml_to_json.py ../path/to/studies.toml > studies.json
 | `S3_PATH_STYLE` | `false` for virtual-hosted URLs | `true` |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_SESSION_TOKEN` | Credentials | the standard `AWS_*` variables (Lambda's IAM role) |
 | `LOG_LEVEL` | `error`, `info`, or `debug` | `info` |
+| `LOG_S3_BUCKET` | Bucket for the randomization log; unset disables it | unset |
+| `LOG_S3_PREFIX` | Key prefix within the log bucket | none |
 
 The store must support atomic `If-None-Match: *` on `PutObject`. AWS S3, Cloudflare R2, and MinIO do; Backblaze B2 does not. Check a bucket before deploying:
 
@@ -74,10 +76,40 @@ S3_BUCKET=… S3_ENDPOINT=… node scripts/check-store.ts
 Logs go to stdout (CloudWatch Logs on Lambda, Workers Logs or `wrangler tail` on Cloudflare). At `info`, each redirect writes one JSON line without the raw params, since they usually carry emails:
 
 ```json
-{"event":"redirect","method":"GET","outcome":"created","key":"57499226b526","study":"Treatment","ms":41}
+{"event":"redirect","method":"GET","outcome":"created","key":"57499226b526","study":"treatment","ms":41}
 ```
 
 `outcome` is `existing`, `created`, `fallback_created`, or `race_lost` (a concurrent visit created the mapping first). `debug` adds `params` and `location`. Errors are always logged.
+
+## Randomization log
+
+With `LOG_S3_BUCKET` set, every new assignment also writes a zero-byte object to that bucket:
+
+```
+<study name>/<YYYYMMDDTHHMMSSZ>_<random>
+control/20261103T164231Z_9f2c41ab
+fallback/20261103T170002Z_03d1e7c4
+```
+
+The key is the whole record, so a report is just a listing, and keys sort by time within each study. Returning visitors and visits that lose a race don't write an entry, so there is exactly one entry per stored mapping. The timestamps have no colons, so `aws s3 sync` to macOS or Windows works.
+
+It lives in its own bucket so reporting credentials only need `s3:ListBucket` on the log bucket and never touch mappings, which hold destination URLs with participants' params. A failed log write is logged as `randomization_log_error` but doesn't stop the redirect.
+
+```sh
+LOG_S3_BUCKET=… node scripts/report.ts                   # counts per study
+LOG_S3_BUCKET=… node scripts/report.ts --since 20261101  # any prefix of YYYYMMDDTHHMMSSZ; --until too
+LOG_S3_BUCKET=… node scripts/report.ts --csv > log.csv   # timestamp,study rows
+```
+
+```
+control       412   33.4%
+treatment     820   66.6%
+total        1232
+
+20261001T140112Z to 20261103T164231Z
+```
+
+Or `aws s3 ls --recursive s3://<log bucket>/` and count with your usual tools.
 
 ## Deploying
 
@@ -89,7 +121,7 @@ npm run build
 
 ### AWS Lambda
 
-1. Create a bucket. Give the function's role `s3:GetObject` and `s3:PutObject` on `arn:aws:s3:::<bucket>/map/*`, plus `s3:ListBucket` on the bucket (without it, a missing object reads as 403 instead of 404).
+1. Create a bucket. Give the function's role `s3:GetObject` and `s3:PutObject` on `arn:aws:s3:::<bucket>/map/*`, plus `s3:ListBucket` on the bucket (without it, a missing object reads as 403 instead of 404). For the randomization log, create a second bucket and give the role only `s3:PutObject` on it; give report users only `s3:ListBucket` on it.
 2. Create a Node.js 22 function with handler `index.handler`, upload `dist/lambda/index.mjs` zipped (`cd dist/lambda && zip ../lambda.zip index.mjs`), and set `S3_BUCKET`.
 3. Add a function URL (auth type `NONE`), or put it behind CloudFront or API Gateway for a custom domain.
 

@@ -59,6 +59,40 @@ export class S3Store implements Store {
     return this.fetch(url, { method, headers: signed, body });
   }
 
+  /**
+   * List keys under this store's prefix plus `within`, oldest-first within a
+   * prefix since keys sort lexicographically. Returns keys without the store
+   * prefix. Pages through ListObjectsV2 1,000 keys at a time.
+   */
+  async *listKeys(within = ""): AsyncGenerator<string> {
+    const prefix = `${this.opts.prefix ?? ""}${within}`;
+    const root = this.bucketRoot();
+    let token: string | undefined;
+    do {
+      const url = new URL(root);
+      url.searchParams.set("list-type", "2");
+      url.searchParams.set("prefix", prefix);
+      if (token) url.searchParams.set("continuation-token", token);
+      const signed = await signRequest({ method: "GET", url, region: this.opts.region, credentials: this.opts.credentials });
+      const res = await this.fetch(url, { method: "GET", headers: signed });
+      const body = await res.text();
+      if (res.status !== 200) throw new S3Error(`S3 LIST ${prefix} failed: ${res.status} ${body.slice(0, 300)}`, res.status);
+      for (const m of body.matchAll(/<Key>([^<]*)<\/Key>/g)) yield decodeXml(m[1]!).slice((this.opts.prefix ?? "").length);
+      token = /<IsTruncated>true<\/IsTruncated>/.test(body)
+        ? decodeXml(/<NextContinuationToken>([^<]*)<\/NextContinuationToken>/.exec(body)?.[1] ?? "")
+        : undefined;
+    } while (token);
+  }
+
+  private bucketRoot(): string {
+    const base = new URL(this.opts.endpoint);
+    if (this.opts.pathStyle ?? true) {
+      const basePath = base.pathname.replace(/\/$/, "");
+      return `${base.protocol}//${base.host}${basePath}/${encodeSegment(this.opts.bucket)}`;
+    }
+    return `${base.protocol}//${this.opts.bucket}.${base.host}/`;
+  }
+
   async get(key: string): Promise<string | null> {
     const res = await this.send("GET", key);
     if (res.status === 404) {
@@ -95,6 +129,27 @@ export class S3Store implements Store {
     }
     throw new S3Error(`S3 conditional PUT ${key} kept conflicting`, 409);
   }
+}
+
+function decodeXml(s: string): string {
+  return s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&amp;/g, "&");
+}
+
+/**
+ * The randomization log store, or null when LOG_S3_BUCKET is unset. It is a
+ * separate bucket so reporting credentials never need access to mappings.
+ * Endpoint, region and credentials are shared with the mapping store.
+ */
+export function logStoreFromEnv(env: Record<string, string | undefined>): S3Store | null {
+  const bucket = env["LOG_S3_BUCKET"];
+  if (!bucket) return null;
+  return s3StoreFromEnv({ ...env, S3_BUCKET: bucket }, { prefix: env["LOG_S3_PREFIX"] ?? "" });
 }
 
 /** Build an S3Store from environment-style variables. */

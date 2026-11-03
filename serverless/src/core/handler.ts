@@ -1,4 +1,4 @@
-import type { Config } from "./config.ts";
+import { FALLBACK_NAME, type Config } from "./config.ts";
 import { parseQuery } from "./params.ts";
 import { resolveDetailed } from "./roulette.ts";
 import type { Store } from "../store/types.ts";
@@ -14,6 +14,32 @@ export interface HandlerDeps {
    * without raw params (they usually carry emails). "debug": adds params.
    */
   logLevel?: string;
+  /**
+   * Where to record randomizations: one zero-byte object per new assignment,
+   * keyed <study name>/<YYYYMMDDTHHMMSSZ>_<random>. Reports are made by
+   * listing keys. Omit to disable.
+   */
+  randomizationLog?: Store;
+  /** For tests. */
+  now?: () => Date;
+}
+
+/** 2026-11-03T16:42:31.123Z -> 20261103T164231Z: sortable, and no colons for Windows or macOS. */
+export function compactTimestamp(d: Date): string {
+  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+function randomSuffix(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Record one randomization. Keys are unique per write, so a conflict only means a random collision. */
+export async function recordRandomization(store: Store, name: string, at: Date): Promise<string> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const key = `${name}/${compactTimestamp(at)}_${randomSuffix()}`;
+    if (await store.putIfAbsent(key, "")) return key;
+  }
+  throw new Error(`could not record randomization for ${name}`);
 }
 
 /**
@@ -43,6 +69,21 @@ export async function handle(request: Request, deps: HandlerDeps): Promise<Respo
   const started = Date.now();
   try {
     const r = await resolveDetailed(deps.store, deps.config, params);
+    if (deps.randomizationLog && (r.outcome === "created" || r.outcome === "fallback_created")) {
+      const name = r.study === undefined ? FALLBACK_NAME : deps.config.studies[r.study]!.name;
+      try {
+        await recordRandomization(deps.randomizationLog, name, deps.now?.() ?? new Date());
+      } catch (e) {
+        // The assignment is stored; a missing log entry must not break the redirect
+        deps.log?.(
+          JSON.stringify({
+            event: "randomization_log_error",
+            study: name,
+            error: e instanceof Error ? e.message : String(e),
+          }),
+        );
+      }
+    }
     if (level === "info" || level === "debug") {
       const study = r.study === undefined ? undefined : deps.config.studies[r.study];
       deps.log?.(
@@ -51,7 +92,7 @@ export async function handle(request: Request, deps: HandlerDeps): Promise<Respo
           method: request.method,
           outcome: r.outcome,
           key: r.key.slice(0, 12),
-          study: study ? (study.note ?? study.url) : undefined,
+          study: study?.name ?? (r.outcome === "fallback_created" ? FALLBACK_NAME : undefined),
           ms: Date.now() - started,
           ...(level === "debug" ? { params: Object.fromEntries(params), location: r.url } : {}),
         }),

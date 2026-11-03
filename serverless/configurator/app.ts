@@ -15,6 +15,7 @@ import {
 } from "../src/core/roulette.ts";
 
 interface DraftStudy {
+  name: string;
   url: string;
   weight: string;
   note: string;
@@ -52,6 +53,7 @@ function draftFromConfig(c: Config): Draft {
   return {
     seed: c.seed,
     studies: c.studies.map((s) => ({
+      name: s.name,
       url: s.url,
       weight: String(s.weight),
       note: s.note ?? "",
@@ -69,6 +71,7 @@ function draftToJson(d: Draft): unknown {
     seed: d.seed,
     studies: d.studies.map((s) => {
       const out: Record<string, unknown> = {
+        name: s.name.trim(),
         url: s.url.trim(),
         weight: s.weight.trim() === "" ? NaN : Number(s.weight),
       };
@@ -106,6 +109,7 @@ function load(text: string, name: string) {
     draft = {
       seed: typeof d["seed"] === "string" && d["seed"] ? (d["seed"] as string) : newSeed(),
       studies: studies.map((s) => ({
+        name: String(s["name"] ?? ""),
         url: String(s["url"] ?? ""),
         weight: String(s["weight"] ?? ""),
         note: String(s["note"] ?? ""),
@@ -146,7 +150,7 @@ $("new").addEventListener("click", () => {
   if (draft && !confirm("Discard the current config and start over?")) return;
   draft = {
     seed: newSeed(),
-    studies: [{ url: "", weight: "1", note: "", required: "", key: "" }],
+    studies: [{ name: "", url: "", weight: "1", note: "", required: "", key: "" }],
     fallbackUrl: "",
     fallbackNote: "",
   };
@@ -191,6 +195,7 @@ function renderStudies() {
         "div",
         { class: "study" },
         field(`Study ${i + 1} URL`, s.url, "url", (v) => (s.url = v), true),
+        field("Name (a-z, 0-9, _ or -; used in the randomization log)", s.name, "text", (v) => (s.name = v)),
         field("Weight", s.weight, "number", (v) => (s.weight = v)),
         field("Note", s.note, "text", (v) => (s.note = v)),
         field("Required params (comma-separated)", s.required, "text", (v) => (s.required = v)),
@@ -209,7 +214,7 @@ function move(i: number, delta: number) {
 }
 
 $("add").addEventListener("click", () => {
-  draft!.studies.push({ url: "", weight: "1", note: "", required: "", key: "" });
+  draft!.studies.push({ name: "", url: "", weight: "1", note: "", required: "", key: "" });
   renderAll();
 });
 
@@ -262,9 +267,11 @@ function changes(before: Config, after: Config): { warnings: string[]; notes: st
   const afterUrls = new Map(after.studies.map((s) => [s.url, s]));
   for (const s of after.studies) {
     const old = beforeUrls.get(s.url);
-    if (!old) notes.push(`Added ${s.note ?? s.url}`);
+    if (!old) notes.push(`Added ${s.name}`);
     else {
-      const name = s.note ?? s.url;
+      const name = s.name;
+      if (old.name !== s.name)
+        notes.push(`Renamed ${old.name} → ${s.name} (the randomization log keeps earlier entries under ${old.name})`);
       if (old.weight !== s.weight) notes.push(`${name}: weight ${old.weight} → ${s.weight}`);
       if (JSON.stringify(old.required_params) !== JSON.stringify(s.required_params))
         notes.push(`${name}: required params [${old.required_params.join(", ")}] → [${s.required_params.join(", ")}]`);
@@ -273,7 +280,7 @@ function changes(before: Config, after: Config): { warnings: string[]; notes: st
     }
   }
   for (const s of before.studies) {
-    if (!afterUrls.has(s.url)) notes.push(`Removed ${s.note ?? s.url} (people already assigned to it keep going there)`);
+    if (!afterUrls.has(s.url)) notes.push(`Removed ${s.name} (people already assigned to it keep going there)`);
   }
   if (before.fallback.url !== after.fallback.url) notes.push("Fallback URL changed (applies to new fallback assignments only)");
   if (before.seed !== after.seed) notes.push("Seed changed (applies to links never visited before)");
@@ -347,7 +354,7 @@ async function renderPreview() {
     return h(
       "tr",
       {},
-      h("td", {}, s.note ?? s.url),
+      h("td", {}, s.name),
       h("td", {}, ok ? "yes" : `no (missing ${s.required_params.filter((p) => !params.has(p)).join(", ")})`),
       h("td", { class: "num" }, pct),
       h("td", {}, describeKey(s.key_params)),
@@ -357,7 +364,7 @@ async function renderPreview() {
   out.replaceChildren(
     h("div", { class: "box ok" },
       "If this exact link has never been visited, it goes to ",
-      h("strong", {}, chosen ? chosen.note ?? chosen.url : `the fallback (${config.fallback.note ?? config.fallback.url})`),
+      h("strong", {}, chosen ? chosen.name : `the fallback (${config.fallback.note ?? config.fallback.url})`),
       ", stored under ",
       h("code", {}, storedHash.slice(0, 12)),
       ` (keyed on ${chosen ? describeKey(chosen.key_params) : "all params"}).`,

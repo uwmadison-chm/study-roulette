@@ -2,13 +2,19 @@
   "seed": "replace-me-with-the-configurator",
   "studies": [
     {
+      "name": "google",
       "url": "https://www.google.com/search",
       "weight": 1,
       "note": "Google Search",
-      "required_params": ["q"],
-      "key_params": ["q"]
+      "required_params": [
+        "q"
+      ],
+      "key_params": [
+        "q"
+      ]
     },
     {
+      "name": "duckduckgo",
       "url": "https://duckduckgo.com/",
       "weight": 2,
       "note": "DuckDuckGo",

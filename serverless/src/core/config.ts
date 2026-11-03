@@ -4,6 +4,8 @@
  */
 
 export interface Study {
+  /** Short identifier used in the randomization log; [a-z0-9_-], unique. */
+  name: string;
   url: string;
   weight: number;
   note?: string;
@@ -27,6 +29,12 @@ export interface Config {
   studies: Study[];
   fallback: Fallback;
 }
+
+/** The randomization log records fallback assignments under this name. */
+export const FALLBACK_NAME = "fallback";
+
+/** Allowed study names: safe in object keys and file names on every OS. */
+export const NAME_PATTERN = /^[a-z0-9_-]{1,64}$/;
 
 export interface ValidationResult {
   config: Config | null;
@@ -81,7 +89,7 @@ function checkNote(entry: Record<string, unknown>, label: string, errors: string
   return note;
 }
 
-const STUDY_KEYS = new Set(["url", "weight", "note", "required_params", "key_params"]);
+const STUDY_KEYS = new Set(["name", "url", "weight", "note", "required_params", "key_params"]);
 const FALLBACK_KEYS = new Set(["url", "note"]);
 
 function checkStudy(entry: unknown, index: number, errors: string[]): Study | null {
@@ -93,6 +101,12 @@ function checkStudy(entry: unknown, index: number, errors: string[]): Study | nu
   const before = errors.length;
   for (const k of Object.keys(entry)) {
     if (!STUDY_KEYS.has(k)) errors.push(`${label}: unknown key '${k}'`);
+  }
+  const name = entry["name"];
+  if (typeof name !== "string" || !NAME_PATTERN.test(name)) {
+    errors.push(`${label}: 'name' must be 1-64 characters of a-z, 0-9, _ or -`);
+  } else if (name === FALLBACK_NAME) {
+    errors.push(`${label}: the name '${FALLBACK_NAME}' is reserved for the fallback`);
   }
   const url = checkUrl(entry["url"], label, errors);
   const weight = entry["weight"];
@@ -115,6 +129,7 @@ function checkStudy(entry: unknown, index: number, errors: string[]): Study | nu
   }
   if (errors.length > before || url === null) return null;
   const study: Study = {
+    name: name as string,
     url,
     weight: weight as number,
     required_params: required ?? [],
@@ -142,9 +157,13 @@ export function validateConfig(data: unknown): ValidationResult {
   if (!Array.isArray(data["studies"])) {
     errors.push("'studies' must be an array");
   } else {
+    const seen = new Set<string>();
     data["studies"].forEach((entry, i) => {
       const s = checkStudy(entry, i, errors);
-      if (s) studies.push(s);
+      if (!s) return;
+      if (seen.has(s.name)) errors.push(`studies[${i}]: duplicate name '${s.name}'`);
+      seen.add(s.name);
+      studies.push(s);
     });
   }
 
