@@ -4,7 +4,7 @@ One-time conversion of a Python-era studies.toml to studies.json.
     python3 scripts/toml_to_json.py path/to/studies.toml > studies.json
 
 Standard library only. Adds a fresh random seed, and derives each study's
-name (used in the randomization log) from its note; check the names.
+name (used in logs) from its note; check the names.
 """
 
 import json
@@ -28,7 +28,7 @@ def main() -> None:
     studies = []
     used = {"fallback"}  # the fallback's default name
     for i, entry in enumerate(data.get("studies", [])):
-        # Names identify studies in the randomization log; derive them from
+        # Names identify studies in logs; derive them from
         # notes where possible. Review and rename in the configurator.
         base = slug(str(entry.get("note", ""))) or f"study-{i + 1}"
         name, n = base, 2

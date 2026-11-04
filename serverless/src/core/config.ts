@@ -4,7 +4,7 @@
  */
 
 export interface Study {
-  /** Short identifier used in the randomization log; [a-z0-9_-], unique. */
+  /** Short identifier used in logs; [a-z0-9_-], unique. */
   name: string;
   url: string;
   weight: number;

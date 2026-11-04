@@ -199,7 +199,7 @@ function renderStudies() {
         "div",
         { class: "study" },
         field(`Study ${i + 1} URL`, s.url, "url", (v) => (s.url = v), true),
-        field("Name (a-z, 0-9, _ or -; used in the randomization log)", s.name, "text", (v) => (s.name = v)),
+        field("Name (a-z, 0-9, _ or -; used in logs)", s.name, "text", (v) => (s.name = v)),
         field("Weight", s.weight, "number", (v) => (s.weight = v)),
         field("Note", s.note, "text", (v) => (s.note = v)),
         field("Required params (comma-separated)", s.required, "text", (v) => (s.required = v)),
@@ -279,7 +279,7 @@ function changes(before: Config, after: Config): { warnings: string[]; notes: st
     else {
       const name = s.name;
       if (old.name !== s.name)
-        notes.push(`Renamed ${old.name} → ${s.name} (the randomization log keeps earlier entries under ${old.name})`);
+        notes.push(`Renamed ${old.name} → ${s.name} (earlier log lines say ${old.name})`);
       if (old.weight !== s.weight) notes.push(`${name}: weight ${old.weight} → ${s.weight}`);
       if (JSON.stringify(old.required_params) !== JSON.stringify(s.required_params))
         notes.push(`${name}: required params [${old.required_params.join(", ")}] → [${s.required_params.join(", ")}]`);
@@ -291,7 +291,7 @@ function changes(before: Config, after: Config): { warnings: string[]; notes: st
     if (!afterUrls.has(s.url)) notes.push(`Removed ${s.name} (people already assigned to it keep going there)`);
   }
   if (before.fallback.name !== after.fallback.name)
-    notes.push(`Renamed fallback ${before.fallback.name} → ${after.fallback.name} (the randomization log keeps earlier entries under ${before.fallback.name})`);
+    notes.push(`Renamed fallback ${before.fallback.name} → ${after.fallback.name} (earlier log lines say ${before.fallback.name})`);
   if (before.fallback.url !== after.fallback.url) notes.push("Fallback URL changed (applies to new fallback assignments only)");
   if (before.seed !== after.seed) notes.push("Seed changed (applies to links never visited before)");
   return { warnings, notes };
