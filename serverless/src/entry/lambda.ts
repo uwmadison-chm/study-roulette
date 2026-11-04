@@ -1,11 +1,10 @@
 /**
  * AWS Lambda entry for a function URL (or API Gateway HTTP API, payload v2).
  * Credentials come from the function's IAM role via the standard AWS_*
- * environment variables; set S3_BUCKET (and S3_PREFIX if not "map/"), and
- * LOG_S3_BUCKET to record randomizations in a separate bucket.
+ * environment variables; set S3_BUCKET (and S3_PREFIX if not "map/").
  */
 import { handle } from "../core/handler.ts";
-import { logStoreFromEnv, s3StoreFromEnv } from "../store/s3.ts";
+import { s3StoreFromEnv } from "../store/s3.ts";
 import { buildId, config } from "../generated/config.ts";
 
 interface FunctionUrlEvent {
@@ -21,9 +20,6 @@ interface FunctionUrlResult {
   body: string;
 }
 
-// No waitUntil: Lambda freezes when the handler returns, so the log write is awaited
-const randomizationLog = logStoreFromEnv(process.env) ?? undefined;
-
 export async function handler(event: FunctionUrlEvent): Promise<FunctionUrlResult> {
   const host = event.requestContext?.domainName ?? event.headers?.["host"] ?? "localhost";
   const query = event.rawQueryString ? `?${event.rawQueryString}` : "";
@@ -31,7 +27,7 @@ export async function handler(event: FunctionUrlEvent): Promise<FunctionUrlResul
     method: event.requestContext?.http?.method ?? "GET",
   });
   const store = s3StoreFromEnv(process.env);
-  const response = await handle(request, { store, config, buildId, log: console.log, logLevel: process.env["LOG_LEVEL"], randomizationLog });
+  const response = await handle(request, { store, config, buildId, log: console.log, logLevel: process.env["LOG_LEVEL"] });
   return {
     statusCode: response.status,
     headers: Object.fromEntries(response.headers),
